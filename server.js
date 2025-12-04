@@ -551,7 +551,7 @@ app.get('/api/grids/:id', async (req, res) => {
       category: grid.custom?.category || grid.custom?.Category || category || '',
       vendor: vendorName,
       status: status,
-      longDescription: grid.item_long_description || '',
+      longDescription: grid.long_description || grid.item_long_description || '',
       price: grid.item_price,
       cost: grid.item_cost,
     });
@@ -599,7 +599,7 @@ app.put('/api/grids/:id', async (req, res) => {
       await heartlandRequest(`/item_grids/${gridId}`, {
         method: 'PUT',
         body: JSON.stringify({
-          item_long_description: longDescription,
+          long_description: longDescription,
         }),
       });
     }
@@ -635,6 +635,209 @@ app.post('/api/grids/:id/skip', async (req, res) => {
     res.json({ success: true, status: 'skipped' });
   } catch (error) {
     console.error('Error skipping grid:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== INVENTORY IQ ENDPOINTS ====================
+
+// Get inventory summary
+app.get('/api/inventory/summary', async (req, res) => {
+  try {
+    // Get inventory values grouped by item
+    const inventoryData = await heartlandRequest('/inventory/values?group[]=item_id&per_page=500');
+    
+    let totalItems = 0;
+    let totalValue = 0;
+    let totalUnits = 0;
+    let outOfStock = 0;
+    let lowStock = 0;
+    let healthyStock = 0;
+    let overStock = 0;
+    
+    for (const item of inventoryData.results || []) {
+      const qty = item.qty_on_hand || 0;
+      const value = (item.qty_on_hand || 0) * (item.unit_cost || 0);
+      
+      totalItems++;
+      totalValue += value;
+      totalUnits += qty;
+      
+      if (qty === 0) outOfStock++;
+      else if (qty <= 2) lowStock++;
+      else if (qty <= 10) healthyStock++;
+      else overStock++;
+    }
+    
+    res.json({
+      totalItems,
+      totalValue: Math.round(totalValue * 100) / 100,
+      totalUnits,
+      stockLevels: {
+        outOfStock,
+        lowStock,
+        healthyStock,
+        overStock
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching inventory summary:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get detailed inventory with item info
+app.get('/api/inventory/items', async (req, res) => {
+  try {
+    const { filter, category, vendor, limit = 100 } = req.query;
+    
+    // Get inventory values grouped by item
+    const inventoryData = await heartlandRequest(`/inventory/values?group[]=item_id&per_page=${limit}`);
+    
+    // Get item details for each inventory record
+    const itemsWithDetails = [];
+    
+    for (const inv of inventoryData.results || []) {
+      if (!inv.item_id) continue;
+      
+      try {
+        const item = await heartlandRequest(`/items/${inv.item_id}`);
+        
+        const qty = inv.qty_on_hand || 0;
+        const cost = item.cost || inv.unit_cost || 0;
+        const price = item.price || 0;
+        const value = qty * cost;
+        
+        // Determine stock status
+        let stockStatus = 'healthy';
+        if (qty === 0) stockStatus = 'out';
+        else if (qty <= 2) stockStatus = 'low';
+        else if (qty > 10) stockStatus = 'over';
+        
+        // Apply filter if specified
+        if (filter === 'out' && stockStatus !== 'out') continue;
+        if (filter === 'low' && stockStatus !== 'low') continue;
+        if (filter === 'over' && stockStatus !== 'over') continue;
+        
+        // Get vendor name
+        let vendorName = 'Unknown';
+        if (item.primary_vendor_id) {
+          vendorName = await getVendorName(item.primary_vendor_id);
+        }
+        
+        // Filter by category if specified
+        const itemCategory = item.custom?.category || item.custom?.Category || item.custom?.department || '';
+        if (category && category !== 'all' && itemCategory.toLowerCase() !== category.toLowerCase()) continue;
+        
+        // Filter by vendor if specified
+        if (vendor && vendor !== 'all' && vendorName.toLowerCase() !== vendor.toLowerCase()) continue;
+        
+        itemsWithDetails.push({
+          id: inv.item_id,
+          name: item.description || 'Unknown Item',
+          color: item.custom?.color_name || item.custom?.Color_Name || '',
+          size: item.custom?.size || item.custom?.Size || '',
+          category: itemCategory,
+          vendor: vendorName,
+          qty: qty,
+          cost: cost,
+          price: price,
+          value: Math.round(value * 100) / 100,
+          stockStatus: stockStatus,
+          gridId: item.grid_id || null,
+        });
+      } catch (e) {
+        console.error(`Error fetching item ${inv.item_id}:`, e);
+      }
+    }
+    
+    res.json({
+      total: itemsWithDetails.length,
+      items: itemsWithDetails
+    });
+  } catch (error) {
+    console.error('Error fetching inventory items:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get low stock items
+app.get('/api/inventory/low-stock', async (req, res) => {
+  try {
+    const { threshold = 2, limit = 50 } = req.query;
+    
+    // Get inventory values grouped by item
+    const inventoryData = await heartlandRequest(`/inventory/values?group[]=item_id&per_page=500`);
+    
+    const lowStockItems = [];
+    
+    for (const inv of inventoryData.results || []) {
+      if (!inv.item_id) continue;
+      
+      const qty = inv.qty_on_hand || 0;
+      if (qty > threshold || qty === 0) continue; // Skip out of stock and healthy stock
+      
+      try {
+        const item = await heartlandRequest(`/items/${inv.item_id}`);
+        
+        let vendorName = 'Unknown';
+        if (item.primary_vendor_id) {
+          vendorName = await getVendorName(item.primary_vendor_id);
+        }
+        
+        lowStockItems.push({
+          id: inv.item_id,
+          name: item.description || 'Unknown Item',
+          color: item.custom?.color_name || item.custom?.Color_Name || '',
+          size: item.custom?.size || item.custom?.Size || '',
+          category: item.custom?.category || item.custom?.Category || '',
+          vendor: vendorName,
+          qty: qty,
+          price: item.price || 0,
+          gridId: item.grid_id || null,
+        });
+        
+        if (lowStockItems.length >= limit) break;
+      } catch (e) {
+        console.error(`Error fetching item ${inv.item_id}:`, e);
+      }
+    }
+    
+    res.json({
+      total: lowStockItems.length,
+      items: lowStockItems
+    });
+  } catch (error) {
+    console.error('Error fetching low stock items:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get categories for filtering
+app.get('/api/inventory/categories', async (req, res) => {
+  try {
+    // Get a sample of items to extract categories
+    const itemsData = await heartlandRequest('/items?per_page=200&_filter[active]=true');
+    
+    const categories = new Set();
+    const vendors = new Set();
+    
+    for (const item of itemsData.results || []) {
+      const category = item.custom?.category || item.custom?.Category || item.custom?.department || '';
+      if (category) categories.add(category);
+      
+      if (item.primary_vendor_id) {
+        const vendorName = await getVendorName(item.primary_vendor_id);
+        if (vendorName !== 'Unknown Vendor') vendors.add(vendorName);
+      }
+    }
+    
+    res.json({
+      categories: Array.from(categories).sort(),
+      vendors: Array.from(vendors).sort()
+    });
+  } catch (error) {
+    console.error('Error fetching categories:', error);
     res.status(500).json({ error: error.message });
   }
 });
