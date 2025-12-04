@@ -773,7 +773,12 @@
       <div class="output-section" id="outputSection">
         <div class="card">
           <h2>Product Description</h2>
-          <textarea class="output-box" id="generatedDescription" rows="12" style="width:100%; font-family: inherit; font-size: 1rem; padding: 12px; border: 1px solid #ddd; border-radius: 8px;"></textarea>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="toggleDescriptionView('preview')" id="previewTabBtn">Preview</button>
+            <button class="btn" style="padding: 6px 12px; font-size: 0.85rem; background: #eee; color: #666;" onclick="toggleDescriptionView('edit')" id="editTabBtn">Edit HTML</button>
+          </div>
+          <div id="descriptionPreview" class="output-box" style="min-height: 200px; padding: 16px; background: white; border: 1px solid #ddd; border-radius: 8px;"></div>
+          <textarea class="output-box" id="generatedDescription" rows="12" style="width:100%; font-family: monospace; font-size: 0.9rem; padding: 12px; border: 1px solid #ddd; border-radius: 8px; display: none;"></textarea>
         </div>
 
         <div class="card">
@@ -957,8 +962,11 @@
       // If there's an existing description, show it
       if (grid.longDescription && grid.longDescription.trim().length > 0) {
         document.getElementById('generatedDescription').value = grid.longDescription;
+        document.getElementById('descriptionPreview').innerHTML = grid.longDescription;
         document.getElementById('outputSection').classList.add('visible');
       } else {
+        document.getElementById('generatedDescription').value = '';
+        document.getElementById('descriptionPreview').innerHTML = '';
         document.getElementById('outputSection').classList.remove('visible');
       }
 
@@ -1021,8 +1029,11 @@
       // If there's an existing description, show it
       if (item.longDescription && item.longDescription.trim().length > 0) {
         document.getElementById('generatedDescription').value = item.longDescription;
+        document.getElementById('descriptionPreview').innerHTML = item.longDescription;
         document.getElementById('outputSection').classList.add('visible');
       } else {
+        document.getElementById('generatedDescription').value = '';
+        document.getElementById('descriptionPreview').innerHTML = '';
         document.getElementById('outputSection').classList.remove('visible');
       }
 
@@ -1211,6 +1222,7 @@
 
         if (data.success) {
           document.getElementById('generatedDescription').value = data.description;
+          document.getElementById('descriptionPreview').innerHTML = data.description;
           metaOutput.textContent = data.metaDescription;
           updateCharCount();
           outputSection.classList.add('visible');
@@ -1222,6 +1234,32 @@
       } finally {
         loadingState.style.display = 'none';
         generateBtn.style.display = 'block';
+      }
+    }
+
+    // Toggle between preview and edit view
+    function toggleDescriptionView(view) {
+      const preview = document.getElementById('descriptionPreview');
+      const textarea = document.getElementById('generatedDescription');
+      const previewBtn = document.getElementById('previewTabBtn');
+      const editBtn = document.getElementById('editTabBtn');
+      
+      if (view === 'edit') {
+        preview.style.display = 'none';
+        textarea.style.display = 'block';
+        previewBtn.style.background = '#eee';
+        previewBtn.style.color = '#666';
+        editBtn.style.background = '#e91e8a';
+        editBtn.style.color = 'white';
+      } else {
+        // Update preview from textarea in case user edited
+        preview.innerHTML = textarea.value;
+        preview.style.display = 'block';
+        textarea.style.display = 'none';
+        previewBtn.style.background = '#e91e8a';
+        previewBtn.style.color = 'white';
+        editBtn.style.background = '#eee';
+        editBtn.style.color = '#666';
       }
     }
 

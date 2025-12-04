@@ -239,12 +239,15 @@ Format your response exactly like this:
     const metaMatch = responseText.match(/---META---([\s\S]*?)---END---/);
 
     const descriptionBase = descriptionMatch ? descriptionMatch[1].trim() : responseText;
-    const description = descriptionBase + '\n\n**Not sure of the fit? Need more information?**\n**We\'re here to help! Send us a DM @monkeesofchattanooga or call 423-486-1300!**';
+    
+    // Convert to HTML format for Shopify
+    const htmlDescription = convertToHtml(descriptionBase);
+    
     const metaDescription = metaMatch ? metaMatch[1].trim() : '';
 
     res.json({
       success: true,
-      description,
+      description: htmlDescription,
       metaDescription,
       raw: responseText,
     });
@@ -254,6 +257,48 @@ Format your response exactly like this:
     res.status(500).json({ error: error.message });
   }
 });
+
+// Convert plain text description to HTML for Shopify
+function convertToHtml(text) {
+  const lines = text.split('\n').filter(line => line.trim());
+  let html = '';
+  let inList = false;
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    
+    // Check if it's a bullet point
+    if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+      if (!inList) {
+        html += '<ul>\n';
+        inList = true;
+      }
+      // Remove the bullet character and trim
+      const content = trimmed.replace(/^[•\-\*]\s*/, '');
+      html += `<li>${content}</li>\n`;
+    } else {
+      // It's a paragraph
+      if (inList) {
+        html += '</ul>\n';
+        inList = false;
+      }
+      if (trimmed) {
+        html += `<p>${trimmed}</p>\n`;
+      }
+    }
+  }
+  
+  // Close list if still open
+  if (inList) {
+    html += '</ul>\n';
+  }
+  
+  // Add the CTA footer
+  html += '<p><strong>Not sure of the fit? Need more information?</strong></p>\n';
+  html += '<p><strong>We\'re here to help! Send us a DM @monkeesofchattanooga or call 423-486-1300!</strong></p>';
+  
+  return html;
+}
 
 // Cache for vendor names (to avoid repeated API calls)
 const vendorCache = new Map();
