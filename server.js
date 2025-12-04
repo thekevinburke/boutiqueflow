@@ -2,10 +2,79 @@ const express = require('express');
 const multer = require('multer');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const path = require('path');
+const { Pool } = require('pg');
 require('dotenv').config();
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false,
+});
+
+// Initialize database tables
+async function initDatabase() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS processed_items (
+        id SERIAL PRIMARY KEY,
+        item_type VARCHAR(10) NOT NULL,
+        heartland_id VARCHAR(50) NOT NULL,
+        receipt_id VARCHAR(50),
+        status VARCHAR(20) NOT NULL DEFAULT 'new',
+        processed_at TIMESTAMP,
+        processed_by VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(item_type, heartland_id)
+      )
+    `);
+    console.log('Database initialized successfully');
+  } catch (error) {
+    console.error('Error initializing database:', error);
+  }
+}
+
+// Initialize DB on startup
+initDatabase();
+
+// Basic Auth middleware
+const USERS = {
+  'adminkevin': 'Monkees842',
+  // Add more users here as needed, e.g.:
+  // 'testuser': 'testpassword',
+};
+
+function basicAuth(req, res, next) {
+  // Skip auth for health check endpoint
+  if (req.path === '/api/health') {
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="BoutiqueFlow"');
+    return res.status(401).send('Authentication required');
+  }
+
+  const base64Credentials = authHeader.split(' ')[1];
+  const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+  const [username, password] = credentials.split(':');
+
+  if (USERS[username] && USERS[username] === password) {
+    req.username = username; // Store username for tracking who processed items
+    return next();
+  }
+
+  res.setHeader('WWW-Authenticate', 'Basic realm="BoutiqueFlow"');
+  return res.status(401).send('Invalid credentials');
+}
+
+// Apply Basic Auth to all routes
+app.use(basicAuth);
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -32,6 +101,36 @@ async function heartlandRequest(endpoint, options = {}) {
   }
   
   return response.json();
+}
+
+// Helper function to get item status from database
+async function getItemStatus(itemType, heartlandId) {
+  try {
+    const result = await pool.query(
+      'SELECT status FROM processed_items WHERE item_type = $1 AND heartland_id = $2',
+      [itemType, heartlandId.toString()]
+    );
+    return result.rows[0]?.status || 'new';
+  } catch (error) {
+    console.error('Error getting item status:', error);
+    return 'new';
+  }
+}
+
+// Helper function to update item status in database
+async function updateItemStatus(itemType, heartlandId, status, receiptId = null, username = null) {
+  try {
+    await pool.query(`
+      INSERT INTO processed_items (item_type, heartland_id, receipt_id, status, processed_at, processed_by)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
+      ON CONFLICT (item_type, heartland_id)
+      DO UPDATE SET status = $4, processed_at = CURRENT_TIMESTAMP, processed_by = $5, updated_at = CURRENT_TIMESTAMP
+    `, [itemType, heartlandId.toString(), receiptId, status, username]);
+    return true;
+  } catch (error) {
+    console.error('Error updating item status:', error);
+    return false;
+  }
 }
 
 app.use(express.json());
@@ -203,7 +302,7 @@ app.get('/api/receipts', async (req, res) => {
         vendor: vendorName,
         receiptNumber: r.public_id || `${r.id}`,
         itemCount: itemCount,
-        status: 'new', // All items start as "new" for our workflow (needs description)
+        status: 'new', // Receipt-level status (could be computed from items later)
       });
     }
     
@@ -214,7 +313,7 @@ app.get('/api/receipts', async (req, res) => {
   }
 });
 
-// Get single receipt with items
+// Get single receipt with items grouped by grid
 app.get('/api/receipts/:id', async (req, res) => {
   try {
     // Extract Heartland ID from our ID format (REC-123 -> 123)
@@ -226,10 +325,12 @@ app.get('/api/receipts/:id', async (req, res) => {
     let vendorName = 'Unknown Vendor';
     
     // Fetch item details for each line
-    const items = await Promise.all(linesData.results.map(async (line) => {
+    const rawItems = [];
+    for (const line of linesData.results) {
       let itemDetails = {
         description: 'Unknown Item',
-        custom: {}
+        custom: {},
+        grid_id: null
       };
       
       try {
@@ -243,19 +344,89 @@ app.get('/api/receipts/:id', async (req, res) => {
         console.error(`Error fetching item ${line.item_id}:`, e);
       }
       
-      return {
-        id: `ITEM-${line.id}`,
+      rawItems.push({
         heartlandItemId: line.item_id,
         heartlandLineId: line.id,
         name: itemDetails.description || 'Unknown Item',
-        color: itemDetails.custom?.color || itemDetails.custom?.Color || '',
+        colorName: itemDetails.custom?.color_name || itemDetails.custom?.Color_Name || itemDetails.custom?.color || itemDetails.custom?.Color || '',
         size: itemDetails.custom?.size || itemDetails.custom?.Size || '',
         category: itemDetails.custom?.category || itemDetails.custom?.Category || itemDetails.custom?.department || '',
-        status: 'new', // We'll track this separately later
+        styleName: itemDetails.custom?.style_name || itemDetails.custom?.Style_Name || '',
+        gridId: itemDetails.grid_id || null,
+        longDescription: itemDetails.long_description || '',
         qty: line.qty,
         unitCost: line.unit_cost,
-      };
-    }));
+      });
+    }
+    
+    // Group items by grid_id (null grid_id = standalone item)
+    const gridGroups = new Map();
+    const standaloneItems = [];
+    
+    for (const item of rawItems) {
+      if (item.gridId) {
+        if (!gridGroups.has(item.gridId)) {
+          gridGroups.set(item.gridId, {
+            gridId: item.gridId,
+            styleName: item.styleName || item.name.split(' - ')[0], // Use style name or first part of description
+            category: item.category,
+            longDescription: item.longDescription,
+            variants: [],
+            colors: new Set(),
+            sizes: new Set(),
+          });
+        }
+        const group = gridGroups.get(item.gridId);
+        group.variants.push(item);
+        if (item.colorName) group.colors.add(item.colorName);
+        if (item.size) group.sizes.add(item.size);
+      } else {
+        standaloneItems.push(item);
+      }
+    }
+    
+    // Convert grid groups to array format for frontend
+    const items = [];
+    
+    // Add grid groups
+    for (const [gridId, group] of gridGroups) {
+      // Get status from database
+      const status = await getItemStatus('grid', gridId);
+      
+      items.push({
+        id: `GRID-${gridId}`,
+        type: 'grid',
+        gridId: gridId,
+        name: group.styleName,
+        category: group.category,
+        colors: Array.from(group.colors).sort(),
+        sizes: Array.from(group.sizes).sort(),
+        variantCount: group.variants.length,
+        longDescription: group.longDescription,
+        status: status,
+        // Include first variant's item ID for fetching additional details if needed
+        heartlandItemId: group.variants[0]?.heartlandItemId,
+      });
+    }
+    
+    // Add standalone items
+    for (const item of standaloneItems) {
+      // Get status from database
+      const status = await getItemStatus('item', item.heartlandItemId);
+      
+      items.push({
+        id: `ITEM-${item.heartlandLineId}`,
+        type: 'item',
+        heartlandItemId: item.heartlandItemId,
+        name: item.name,
+        category: item.category,
+        colors: item.colorName ? [item.colorName] : [],
+        sizes: item.size ? [item.size] : [],
+        variantCount: 1,
+        longDescription: item.longDescription,
+        status: status,
+      });
+    }
     
     res.json({
       id: req.params.id,
@@ -263,7 +434,8 @@ app.get('/api/receipts/:id', async (req, res) => {
       date: receipt.created_at ? receipt.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
       vendor: vendorName,
       receiptNumber: receipt.public_id || `${receipt.id}`,
-      itemCount: items.length,
+      itemCount: rawItems.length,
+      productCount: items.length, // Number of unique products (grids + standalone)
       status: 'new',
       items: items,
     });
@@ -279,10 +451,6 @@ app.get('/api/items/:id', async (req, res) => {
     // Extract Heartland line ID from our ID format (ITEM-123 -> 123)
     const lineId = req.params.id.replace('ITEM-', '');
     
-    // We need to find which receipt this line belongs to
-    // For now, we'll need the item_id to be passed or we search
-    // Let's try to get it from query param or search
-    
     const itemId = req.query.itemId;
     
     if (itemId) {
@@ -294,15 +462,19 @@ app.get('/api/items/:id', async (req, res) => {
         vendorName = await getVendorName(item.primary_vendor_id);
       }
       
+      // Get status from database
+      const status = await getItemStatus('item', itemId);
+      
       res.json({
         id: req.params.id,
+        type: 'item',
         heartlandItemId: itemId,
         name: item.description || 'Unknown Item',
-        color: item.custom?.color || item.custom?.Color || '',
-        size: item.custom?.size || item.custom?.Size || '',
+        colors: [item.custom?.color_name || item.custom?.Color_Name || item.custom?.color || item.custom?.Color || ''].filter(c => c),
+        sizes: [item.custom?.size || item.custom?.Size || ''].filter(s => s),
         category: item.custom?.category || item.custom?.Category || item.custom?.department || '',
         vendor: vendorName,
-        status: 'new',
+        status: status,
         longDescription: item.long_description || '',
         price: item.price,
         cost: item.cost,
@@ -317,22 +489,130 @@ app.get('/api/items/:id', async (req, res) => {
   }
 });
 
-// Update item description in Heartland
+// Get single grid
+app.get('/api/grids/:id', async (req, res) => {
+  try {
+    const gridId = req.params.id.replace('GRID-', '');
+    
+    const grid = await heartlandRequest(`/item_grids/${gridId}`);
+    
+    // Get vendor from grid's primary_vendor_id
+    let vendorName = 'Unknown Vendor';
+    if (grid.item_primary_vendor_id) {
+      vendorName = await getVendorName(grid.item_primary_vendor_id);
+    }
+    
+    // Get items in this grid to show color/size info
+    const itemsData = await heartlandRequest(`/items?_filter[grid_id]=${gridId}&per_page=50`);
+    
+    const colors = new Set();
+    const sizes = new Set();
+    
+    for (const item of itemsData.results || []) {
+      const colorName = item.custom?.color_name || item.custom?.Color_Name || item.custom?.color || item.custom?.Color || '';
+      const size = item.custom?.size || item.custom?.Size || '';
+      if (colorName) colors.add(colorName);
+      if (size) sizes.add(size);
+    }
+    
+    // Get status from database
+    const status = await getItemStatus('grid', gridId);
+    
+    res.json({
+      id: `GRID-${gridId}`,
+      type: 'grid',
+      gridId: gridId,
+      name: grid.item_description || 'Unknown Grid',
+      colors: Array.from(colors).sort(),
+      sizes: Array.from(sizes).sort(),
+      variantCount: itemsData.total || 0,
+      category: grid.custom?.category || grid.custom?.Category || grid.custom?.department || '',
+      vendor: vendorName,
+      status: status,
+      longDescription: grid.item_long_description || '',
+      price: grid.item_price,
+      cost: grid.item_cost,
+    });
+  } catch (error) {
+    console.error('Error fetching grid from Heartland:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update item description in Heartland and mark as completed
 app.put('/api/items/:id', async (req, res) => {
   try {
     const itemId = req.query.itemId || req.params.id.replace('ITEM-', '');
-    const { longDescription } = req.body;
+    const { longDescription, status } = req.body;
     
-    await heartlandRequest(`/items/${itemId}`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        long_description: longDescription,
-      }),
-    });
+    // If there's a description, update Heartland
+    if (longDescription !== undefined) {
+      await heartlandRequest(`/items/${itemId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          long_description: longDescription,
+        }),
+      });
+    }
     
-    res.json({ success: true });
+    // Update status in database
+    const newStatus = status || 'completed';
+    await updateItemStatus('item', itemId, newStatus, null, req.username);
+    
+    res.json({ success: true, status: newStatus });
   } catch (error) {
     console.error('Error updating item in Heartland:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update grid description in Heartland and mark as completed
+app.put('/api/grids/:id', async (req, res) => {
+  try {
+    const gridId = req.params.id.replace('GRID-', '');
+    const { longDescription, status } = req.body;
+    
+    // If there's a description, update Heartland
+    if (longDescription !== undefined) {
+      await heartlandRequest(`/item_grids/${gridId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          item_long_description: longDescription,
+        }),
+      });
+    }
+    
+    // Update status in database
+    const newStatus = status || 'completed';
+    await updateItemStatus('grid', gridId, newStatus, null, req.username);
+    
+    res.json({ success: true, status: newStatus });
+  } catch (error) {
+    console.error('Error updating grid in Heartland:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Skip an item (mark as skipped without updating Heartland)
+app.post('/api/items/:id/skip', async (req, res) => {
+  try {
+    const itemId = req.query.itemId || req.params.id.replace('ITEM-', '');
+    await updateItemStatus('item', itemId, 'skipped', null, req.username);
+    res.json({ success: true, status: 'skipped' });
+  } catch (error) {
+    console.error('Error skipping item:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Skip a grid (mark as skipped without updating Heartland)
+app.post('/api/grids/:id/skip', async (req, res) => {
+  try {
+    const gridId = req.params.id.replace('GRID-', '');
+    await updateItemStatus('grid', gridId, 'skipped', null, req.username);
+    res.json({ success: true, status: 'skipped' });
+  } catch (error) {
+    console.error('Error skipping grid:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -342,15 +622,21 @@ app.get('/api/health', async (req, res) => {
   try {
     // Test Heartland connection
     await heartlandRequest('/system/whoami');
+    
+    // Test database connection
+    await pool.query('SELECT 1');
+    
     res.json({ 
       status: 'ok',
       heartland: 'connected',
+      database: 'connected',
       anthropic: process.env.ANTHROPIC_API_KEY ? 'configured' : 'missing',
     });
   } catch (error) {
     res.json({ 
       status: 'degraded',
       heartland: 'error: ' + error.message,
+      database: 'unknown',
       anthropic: process.env.ANTHROPIC_API_KEY ? 'configured' : 'missing',
     });
   }

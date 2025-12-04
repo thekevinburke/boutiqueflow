@@ -218,6 +218,11 @@
       color: #047857;
     }
 
+    .status-badge.skipped {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
     /* Receipt Detail Styles */
     .back-link {
       display: inline-flex;
@@ -692,8 +697,8 @@
 
       <div class="item-list">
         <div class="item-list-header">
-          <div>Product Name</div>
-          <div>Color</div>
+          <div>Product</div>
+          <div>Colors / Sizes</div>
           <div>Category</div>
           <div>Status</div>
           <div>Action</div>
@@ -752,8 +757,11 @@
         <div class="preview-grid" id="previewGrid"></div>
       </div>
 
-      <!-- Generate Button -->
-      <button class="btn btn-block" id="generateBtn" disabled>Generate Description</button>
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+        <button class="btn btn-block" id="generateBtn" disabled style="flex: 2;">Generate Description</button>
+        <button class="btn btn-secondary" id="skipBtn" style="flex: 1;">Skip Item</button>
+      </div>
 
       <!-- Loading State -->
       <div class="card loading" id="loadingState" style="display: none;">
@@ -765,7 +773,7 @@
       <div class="output-section" id="outputSection">
         <div class="card">
           <h2>Product Description</h2>
-          <div class="output-box editable" contenteditable="true" id="descriptionOutput"></div>
+          <textarea class="output-box" id="generatedDescription" rows="12" style="width:100%; font-family: inherit; font-size: 1rem; padding: 12px; border: 1px solid #ddd; border-radius: 8px;"></textarea>
         </div>
 
         <div class="card">
@@ -777,12 +785,12 @@
         <div class="card">
           <div class="actions">
             <button class="btn btn-secondary" id="regenerateBtn">Regenerate</button>
-            <button class="btn btn-success" id="approveBtn">Approve & Copy</button>
+            <button class="btn btn-success" id="saveToHeartlandBtn">Save to Heartland</button>
           </div>
         </div>
 
         <div class="success-message" id="successMessage">
-          ✓ Copied to clipboard! Paste into Heartland Retail.
+          ✓ Description saved to Heartland!
         </div>
       </div>
     </div>
@@ -794,6 +802,9 @@
     let uploadedFiles = [];
     let isQuickAdd = false;
     let allReceipts = []; // Store all receipts for filtering
+    let currentItemType = null; // 'grid' or 'item'
+    let currentGridId = null;
+    let currentHeartlandItemId = null;
 
     // Elements
     const dashboardPage = document.getElementById('dashboardPage');
@@ -875,27 +886,101 @@
       document.getElementById('receiptVendor').textContent = receipt.vendor;
       document.getElementById('receiptDate').textContent = formatDate(receipt.date);
       document.getElementById('receiptPO').textContent = receipt.receiptNumber;
-      document.getElementById('receiptItemCount').textContent = receipt.itemCount;
+      document.getElementById('receiptItemCount').textContent = `${receipt.productCount} products (${receipt.itemCount} items)`;
 
       const listBody = document.getElementById('itemListBody');
-      listBody.innerHTML = receipt.items.map(item => `
-        <div class="item-row">
-          <div class="item-name">${item.name}</div>
-          <div class="item-color">${item.color}</div>
-          <div class="item-category">${item.category}</div>
-          <div><span class="status-badge ${item.status}">${formatStatus(item.status)}</span></div>
-          <div class="item-action">
-            <button class="btn btn-sm" onclick="showItem('${item.id}', '${item.heartlandItemId}', '${receipt.vendor}')">${item.status === 'completed' ? 'View' : 'Edit'}</button>
+      listBody.innerHTML = receipt.items.map(item => {
+        // Format colors and sizes display
+        const colorsDisplay = item.colors && item.colors.length > 0 ? item.colors.join(', ') : '-';
+        const sizesDisplay = item.sizes && item.sizes.length > 0 ? item.sizes.join(', ') : '-';
+        const variantInfo = item.variantCount > 1 ? `<span style="color:#888; font-size:0.8rem;">(${item.variantCount} variants)</span>` : '';
+        
+        // Determine if this is a grid or standalone item
+        const isGrid = item.type === 'grid';
+        const clickHandler = isGrid 
+          ? `showGrid('${item.id}', '${item.gridId}', '${receipt.vendor}')`
+          : `showItem('${item.id}', '${item.heartlandItemId}', '${receipt.vendor}')`;
+        
+        return `
+          <div class="item-row">
+            <div class="item-name">${item.name} ${variantInfo}</div>
+            <div class="item-color">${colorsDisplay}<br><span style="color:#999; font-size:0.8rem;">Sizes: ${sizesDisplay}</span></div>
+            <div class="item-category">${item.category || '-'}</div>
+            <div><span class="status-badge ${item.status}">${formatStatus(item.status)}</span></div>
+            <div class="item-action">
+              <button class="btn btn-sm" onclick="${clickHandler}">${item.status === 'completed' ? 'View' : 'Edit'}</button>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       showPage('receipt');
       breadcrumb.innerHTML = `<a href="#" onclick="showDashboard(); return false;">Dashboard</a> <span>→</span> <span>${receipt.vendor}</span>`;
     }
 
+    // Show grid editor (for gridded products)
+    async function showGrid(itemId, gridId, vendorName) {
+      isQuickAdd = false;
+      currentItemType = 'grid';
+      currentGridId = gridId;
+      
+      const response = await fetch(`/api/grids/${gridId}`);
+      const grid = await response.json();
+      
+      if (!grid.vendor || grid.vendor === 'Unknown Vendor') {
+        grid.vendor = vendorName || 'Unknown Vendor';
+      }
+
+      const colorsText = grid.colors && grid.colors.length > 0 ? grid.colors.join(', ') : 'N/A';
+      const sizesText = grid.sizes && grid.sizes.length > 0 ? grid.sizes.join(', ') : 'N/A';
+
+      document.getElementById('itemTitle').textContent = grid.name;
+      document.getElementById('itemSubtitle').textContent = `${grid.vendor} • ${grid.variantCount} variants`;
+      
+      // Set fields
+      const productNameInput = document.getElementById('productName');
+      const vendorInput = document.getElementById('vendor');
+      const colorInput = document.getElementById('color');
+      const categoryInput = document.getElementById('category');
+      
+      productNameInput.value = grid.name;
+      productNameInput.readOnly = true;
+      vendorInput.value = grid.vendor;
+      vendorInput.readOnly = true;
+      colorInput.value = colorsText;
+      colorInput.readOnly = true;
+      categoryInput.value = grid.category || '';
+      categoryInput.readOnly = true;
+      
+      document.getElementById('vendorDescription').value = '';
+
+      // If there's an existing description, show it
+      if (grid.longDescription && grid.longDescription.trim().length > 0) {
+        document.getElementById('generatedDescription').value = grid.longDescription;
+        document.getElementById('outputSection').classList.add('visible');
+      } else {
+        document.getElementById('outputSection').classList.remove('visible');
+      }
+
+      // Reset upload state
+      uploadedFiles = [];
+      document.getElementById('previewGrid').innerHTML = '';
+      updateGenerateButton();
+
+      document.getElementById('backToReceipt').onclick = (e) => {
+        e.preventDefault();
+        showReceipt(currentReceiptId);
+      };
+      document.getElementById('backToReceipt').textContent = '← Back to Receipt';
+
+      showPage('item');
+      breadcrumb.innerHTML = `<a href="#" onclick="showDashboard(); return false;">Dashboard</a> <span>→</span> <a href="#" onclick="showReceipt('${currentReceiptId}'); return false;">${grid.vendor}</a> <span>→</span> <span>${grid.name}</span>`;
+    }
+
     async function showItem(itemId, heartlandItemId, vendorName) {
       isQuickAdd = false;
+      currentItemType = 'item';
+      currentHeartlandItemId = heartlandItemId;
       
       // If we have heartlandItemId, use it to fetch fresh item data
       let item;
@@ -910,8 +995,11 @@
         item = await response.json();
       }
 
+      const colorsText = item.colors && item.colors.length > 0 ? item.colors.join(', ') : '';
+      const sizesText = item.sizes && item.sizes.length > 0 ? item.sizes.join(', ') : '';
+
       document.getElementById('itemTitle').textContent = item.name;
-      document.getElementById('itemSubtitle').textContent = `${item.vendor} • ${item.color}`;
+      document.getElementById('itemSubtitle').textContent = `${item.vendor} • ${colorsText}`;
       
       // Set fields as read-only for receipt items
       const productNameInput = document.getElementById('productName');
@@ -923,17 +1011,24 @@
       productNameInput.readOnly = true;
       vendorInput.value = item.vendor;
       vendorInput.readOnly = true;
-      colorInput.value = item.color;
+      colorInput.value = colorsText;
       colorInput.readOnly = true;
       categoryInput.value = item.category;
       categoryInput.readOnly = true;
       
       document.getElementById('vendorDescription').value = '';
 
+      // If there's an existing description, show it
+      if (item.longDescription && item.longDescription.trim().length > 0) {
+        document.getElementById('generatedDescription').value = item.longDescription;
+        document.getElementById('outputSection').classList.add('visible');
+      } else {
+        document.getElementById('outputSection').classList.remove('visible');
+      }
+
       // Reset upload state
       uploadedFiles = [];
       document.getElementById('previewGrid').innerHTML = '';
-      document.getElementById('outputSection').classList.remove('visible');
       updateGenerateButton();
 
       document.getElementById('backToReceipt').onclick = (e) => {
@@ -1006,7 +1101,13 @@
     }
 
     function formatStatus(status) {
-      return status.replace('_', ' ');
+      const statusMap = {
+        'new': 'New',
+        'in_progress': 'In Progress',
+        'completed': 'Completed',
+        'skipped': 'Skipped'
+      };
+      return statusMap[status] || status.replace('_', ' ');
     }
 
     // Image upload handlers
@@ -1014,9 +1115,9 @@
     const fileInput = document.getElementById('fileInput');
     const previewGrid = document.getElementById('previewGrid');
     const generateBtn = document.getElementById('generateBtn');
+    const skipBtn = document.getElementById('skipBtn');
     const loadingState = document.getElementById('loadingState');
     const outputSection = document.getElementById('outputSection');
-    const descriptionOutput = document.getElementById('descriptionOutput');
     const metaOutput = document.getElementById('metaOutput');
     const charCount = document.getElementById('charCount');
     const successMessage = document.getElementById('successMessage');
@@ -1109,7 +1210,7 @@
         const data = await response.json();
 
         if (data.success) {
-          descriptionOutput.textContent = data.description;
+          document.getElementById('generatedDescription').value = data.description;
           metaOutput.textContent = data.metaDescription;
           updateCharCount();
           outputSection.classList.add('visible');
@@ -1132,11 +1233,121 @@
       charCount.classList.toggle('over', length > 160);
     }
 
-    document.getElementById('approveBtn').addEventListener('click', async () => {
-      const text = `${descriptionOutput.textContent}\n\n---\n\nMeta Description:\n${metaOutput.textContent}`;
-      await navigator.clipboard.writeText(text);
-      successMessage.classList.add('visible');
-      setTimeout(() => successMessage.classList.remove('visible'), 3000);
+    // Save to Heartland
+    document.getElementById('saveToHeartlandBtn').addEventListener('click', async () => {
+      const description = document.getElementById('generatedDescription').value;
+      
+      if (!description.trim()) {
+        alert('Please generate or enter a description first.');
+        return;
+      }
+
+      const saveBtn = document.getElementById('saveToHeartlandBtn');
+      const originalText = saveBtn.textContent;
+      saveBtn.textContent = 'Saving...';
+      saveBtn.disabled = true;
+
+      try {
+        let endpoint, body;
+        
+        if (isQuickAdd) {
+          // Quick Add mode - just copy to clipboard
+          await navigator.clipboard.writeText(description);
+          successMessage.textContent = '✓ Copied to clipboard!';
+          successMessage.classList.add('visible');
+          setTimeout(() => successMessage.classList.remove('visible'), 3000);
+        } else if (currentItemType === 'grid') {
+          // Save to grid
+          endpoint = `/api/grids/${currentGridId}`;
+          body = { longDescription: description };
+          
+          const response = await fetch(endpoint, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          
+          if (!response.ok) throw new Error('Failed to save to Heartland');
+          
+          successMessage.textContent = '✓ Description saved to Heartland! All variants updated.';
+          successMessage.classList.add('visible');
+          setTimeout(() => {
+            successMessage.classList.remove('visible');
+            // Go back to receipt
+            showReceipt(currentReceiptId);
+          }, 2000);
+        } else {
+          // Save to individual item
+          endpoint = `/api/items/${currentHeartlandItemId}?itemId=${currentHeartlandItemId}`;
+          body = { longDescription: description };
+          
+          const response = await fetch(endpoint, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          
+          if (!response.ok) throw new Error('Failed to save to Heartland');
+          
+          successMessage.textContent = '✓ Description saved to Heartland!';
+          successMessage.classList.add('visible');
+          setTimeout(() => {
+            successMessage.classList.remove('visible');
+            // Go back to receipt
+            showReceipt(currentReceiptId);
+          }, 2000);
+        }
+      } catch (error) {
+        alert('Error saving to Heartland: ' + error.message);
+      } finally {
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+      }
+    });
+
+    // Skip button handler
+    skipBtn.addEventListener('click', async () => {
+      if (isQuickAdd) {
+        // Can't skip in Quick Add mode
+        alert('Skip is not available in Quick Add mode.');
+        return;
+      }
+
+      if (!confirm('Skip this item? It will be marked as skipped and won\'t appear in your workflow.')) {
+        return;
+      }
+
+      skipBtn.textContent = 'Skipping...';
+      skipBtn.disabled = true;
+
+      try {
+        let endpoint;
+        
+        if (currentItemType === 'grid') {
+          endpoint = `/api/grids/${currentGridId}/skip`;
+        } else {
+          endpoint = `/api/items/${currentHeartlandItemId}/skip?itemId=${currentHeartlandItemId}`;
+        }
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        
+        if (!response.ok) throw new Error('Failed to skip item');
+        
+        successMessage.textContent = '✓ Item skipped';
+        successMessage.classList.add('visible');
+        setTimeout(() => {
+          successMessage.classList.remove('visible');
+          showReceipt(currentReceiptId);
+        }, 1500);
+      } catch (error) {
+        alert('Error skipping item: ' + error.message);
+      } finally {
+        skipBtn.textContent = 'Skip Item';
+        skipBtn.disabled = false;
+      }
     });
   </script>
 </body>
