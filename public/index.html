@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoutiqueFlow.ai</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .header {
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #222;
+      text-decoration: none;
+    }
+
+    .logo span {
+      color: #e91e8a;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: #222;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .nav-link:hover {
+      color: #e91e8a;
+    }
+
+    .pro-badge {
+      background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .nav-breadcrumb a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .nav-breadcrumb a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 24px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: #222;
+    }
+
+    .page-subtitle {
+      color: #666;
+      margin: 0;
+    }
+
+    /* Dashboard Styles */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #222;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #666;
+    }
+
+    .stat-card.new .stat-number { color: #007bff; }
+    .stat-card.progress .stat-number { color: #f59e0b; }
+    .stat-card.done .stat-number { color: #10b981; }
+
+    .receipt-list {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .receipt-list-header {
+      display: grid;
+      grid-template-columns: 100px 1fr 140px 80px 100px;
+      padding: 12px 20px;
+      background: #f8f9fa;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #666;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .receipt-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 140px 80px 100px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .receipt-row:hover {
+      background: #f8faff;
+    }
+
+    .receipt-row:last-child {
+      border-bottom: none;
+    }
+
+    .receipt-date {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .receipt-vendor {
+      font-weight: 500;
+    }
+
+    .receipt-po {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .receipt-items {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: capitalize;
+    }
+
+    .status-badge.new {
+      background: #e0f2fe;
+      color: #0277bd;
+    }
+
+    .status-badge.in_progress {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .status-badge.completed {
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    /* Receipt Detail Styles */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #007bff;
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .receipt-header-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+
+    .receipt-meta {
+      display: flex;
+      gap: 32px;
+      margin-top: 12px;
+    }
+
+    .receipt-meta-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .receipt-meta-label {
+      font-size: 0.75rem;
+      color: #666;
+      text-transform: uppercase;
+    }
+
+    .receipt-meta-value {
+      font-weight: 500;
+    }
+
+    .item-list {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .item-list-header {
+      display: grid;
+      grid-template-columns: 1fr 120px 100px 100px 100px;
+      padding: 12px 20px;
+      background: #f8f9fa;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #666;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr 120px 100px 100px 100px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      align-items: center;
+    }
+
+    .item-row:last-child {
+      border-bottom: none;
+    }
+
+    .item-name {
+      font-weight: 500;
+    }
+
+    .item-color, .item-category, .item-size {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .item-action .btn {
+      padding: 8px 16px;
+      font-size: 0.85rem;
+    }
+
+    /* Card & Form Styles */
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: #444;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #555;
+    }
+
+    input, textarea {
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #007bff;
+    }
+
+    input:read-only {
+      background: #f8f9fa;
+      color: #666;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* Upload Area */
+    .upload-area {
+      border: 2px dashed #ddd;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .upload-area:hover {
+      border-color: #007bff;
+      background: #f8faff;
+    }
+
+    .upload-area.dragover {
+      border-color: #007bff;
+      background: #f0f7ff;
+    }
+
+    .upload-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+
+    .upload-text {
+      color: #666;
+    }
+
+    .upload-text span {
+      color: #007bff;
+      text-decoration: underline;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .preview-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .preview-item button {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    /* Buttons */
+    .btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: #0056b3;
+    }
+
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .btn-success {
+      background: #28a745;
+    }
+
+    .btn-success:hover {
+      background: #1e7e34;
+    }
+
+    .btn-sm {
+      padding: 8px 16px;
+      font-size: 0.875rem;
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    /* Output Section */
+    .output-section {
+      display: none;
+    }
+
+    .output-section.visible {
+      display: block;
+    }
+
+    .output-box {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+      font-size: 0.95rem;
+    }
+
+    .output-box.editable {
+      background: white;
+      min-height: 150px;
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .char-count.over {
+      color: #dc3545;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #007bff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .success-message {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+    }
+
+    .success-message.visible {
+      display: block;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .actions .btn {
+      flex: 1;
+    }
+
+    /* Page visibility */
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <a href="#" class="logo" onclick="showDashboard(); return false;">Boutique<span>Flow</span>.ai</a>
+    <div class="nav-links">
+      <a href="first-dibs.html" class="nav-link">
+        First Dibs
+        <span class="pro-badge">PRO</span>
+      </a>
+      <a href="retargeting.html" class="nav-link">
+        Retargeting
+        <span class="pro-badge">PRO</span>
+      </a>
+      <a href="inventoryiq.html" class="nav-link">
+        InventoryIQ
+        <span class="pro-badge">PRO</span>
+      </a>
+      <a href="salesiq.html" class="nav-link">
+        SalesIQ
+        <span class="pro-badge">PRO</span>
+      </a>
+      <a href="support.html" class="nav-link" style="color: #666;">Support</a>
+      <nav class="nav-breadcrumb" id="breadcrumb">
+        <span>Dashboard</span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Dashboard Page -->
+  <div class="page active" id="dashboardPage">
+    <div class="container">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Recent Receipts</h1>
+          <p class="page-subtitle">Select a receipt to add product descriptions</p>
+        </div>
+        <button class="btn" onclick="showQuickAdd()">+ Quick Add</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card new">
+          <div class="stat-number" id="statNew">-</div>
+          <div class="stat-label">New Items</div>
+        </div>
+        <div class="stat-card progress">
+          <div class="stat-number" id="statProgress">-</div>
+          <div class="stat-label">In Progress</div>
+        </div>
+        <div class="stat-card done">
+          <div class="stat-number" id="statDone">-</div>
+          <div class="stat-label">Completed</div>
+        </div>
+      </div>
+
+      <div class="receipt-list">
+        <div class="receipt-list-header">
+          <div>Date</div>
+          <div>Vendor</div>
+          <div>PO Number</div>
+          <div>Items</div>
+          <div>Status</div>
+        </div>
+        <div id="receiptListBody">
+          <!-- Receipts loaded here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt Detail Page -->
+  <div class="page" id="receiptPage">
+    <div class="container">
+      <a href="#" class="back-link" onclick="showDashboard(); return false;">← Back to Receipts</a>
+      
+      <div class="receipt-header-card">
+        <h1 class="page-title" id="receiptVendor">-</h1>
+        <div class="receipt-meta">
+          <div class="receipt-meta-item">
+            <span class="receipt-meta-label">Date Received</span>
+            <span class="receipt-meta-value" id="receiptDate">-</span>
+          </div>
+          <div class="receipt-meta-item">
+            <span class="receipt-meta-label">PO Number</span>
+            <span class="receipt-meta-value" id="receiptPO">-</span>
+          </div>
+          <div class="receipt-meta-item">
+            <span class="receipt-meta-label">Items</span>
+            <span class="receipt-meta-value" id="receiptItemCount">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-list">
+        <div class="item-list-header">
+          <div>Product Name</div>
+          <div>Color</div>
+          <div>Category</div>
+          <div>Status</div>
+          <div>Action</div>
+        </div>
+        <div id="itemListBody">
+          <!-- Items loaded here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Item Workflow Page -->
+  <div class="page" id="itemPage">
+    <div class="container">
+      <a href="#" class="back-link" id="backToReceipt">← Back to Receipt</a>
+
+      <h1 class="page-title" id="itemTitle">-</h1>
+      <p class="page-subtitle" id="itemSubtitle">-</p>
+
+      <!-- Product Details -->
+      <div class="card">
+        <h2>Product Details</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="productName">Product Name</label>
+            <input type="text" id="productName">
+          </div>
+          <div class="form-group">
+            <label for="vendor">Vendor / Brand</label>
+            <input type="text" id="vendor">
+          </div>
+          <div class="form-group">
+            <label for="color">Color</label>
+            <input type="text" id="color">
+          </div>
+          <div class="form-group">
+            <label for="category">Category</label>
+            <input type="text" id="category">
+          </div>
+          <div class="form-group full-width">
+            <label for="vendorDescription">Vendor Description (optional)</label>
+            <textarea id="vendorDescription" placeholder="Paste any description from the vendor's website..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Image Upload -->
+      <div class="card">
+        <h2>Product Images</h2>
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">📸</div>
+          <p class="upload-text">Drag & drop images here or <span>browse</span></p>
+          <p style="font-size: 0.8rem; color: #999; margin-top: 8px;">Supports JPG, PNG, WebP</p>
+        </div>
+        <input type="file" id="fileInput" multiple accept="image/*">
+        <div class="preview-grid" id="previewGrid"></div>
+      </div>
+
+      <!-- Generate Button -->
+      <button class="btn btn-block" id="generateBtn" disabled>Generate Description</button>
+
+      <!-- Loading State -->
+      <div class="card loading" id="loadingState" style="display: none;">
+        <div class="spinner"></div>
+        <p>Generating your product description...</p>
+      </div>
+
+      <!-- Output Section -->
+      <div class="output-section" id="outputSection">
+        <div class="card">
+          <h2>Product Description</h2>
+          <div class="output-box editable" contenteditable="true" id="descriptionOutput"></div>
+        </div>
+
+        <div class="card">
+          <h2>Meta Description</h2>
+          <div class="output-box editable" contenteditable="true" id="metaOutput"></div>
+          <div class="char-count" id="charCount">0 / 160 characters</div>
+        </div>
+
+        <div class="card">
+          <div class="actions">
+            <button class="btn btn-secondary" id="regenerateBtn">Regenerate</button>
+            <button class="btn btn-success" id="approveBtn">Approve & Copy</button>
+          </div>
+        </div>
+
+        <div class="success-message" id="successMessage">
+          ✓ Copied to clipboard! Paste into Heartland Retail.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let currentReceiptId = null;
+    let uploadedFiles = [];
+    let isQuickAdd = false;
+
+    // Elements
+    const dashboardPage = document.getElementById('dashboardPage');
+    const receiptPage = document.getElementById('receiptPage');
+    const itemPage = document.getElementById('itemPage');
+    const breadcrumb = document.getElementById('breadcrumb');
+
+    // Load dashboard on start
+    loadDashboard();
+
+    async function loadDashboard() {
+      try {
+        const response = await fetch('/api/receipts');
+        const receipts = await response.json();
+
+        // Calculate stats
+        let newItems = 0, inProgress = 0, completed = 0;
+        receipts.forEach(r => {
+          if (r.status === 'new') newItems += r.itemCount;
+          else if (r.status === 'in_progress') inProgress += r.itemCount;
+          else if (r.status === 'completed') completed += r.itemCount;
+        });
+
+        document.getElementById('statNew').textContent = newItems;
+        document.getElementById('statProgress').textContent = inProgress;
+        document.getElementById('statDone').textContent = completed;
+
+        // Render receipt list
+        const listBody = document.getElementById('receiptListBody');
+        listBody.innerHTML = receipts.map(r => `
+          <div class="receipt-row" onclick="showReceipt('${r.id}')">
+            <div class="receipt-date">${formatDate(r.date)}</div>
+            <div class="receipt-vendor">${r.vendor}</div>
+            <div class="receipt-po">${r.poNumber}</div>
+            <div class="receipt-items">${r.itemCount} items</div>
+            <div><span class="status-badge ${r.status}">${formatStatus(r.status)}</span></div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+      }
+    }
+
+    async function showReceipt(receiptId) {
+      currentReceiptId = receiptId;
+      const response = await fetch(`/api/receipts/${receiptId}`);
+      const receipt = await response.json();
+
+      document.getElementById('receiptVendor').textContent = receipt.vendor;
+      document.getElementById('receiptDate').textContent = formatDate(receipt.date);
+      document.getElementById('receiptPO').textContent = receipt.poNumber;
+      document.getElementById('receiptItemCount').textContent = receipt.itemCount;
+
+      const listBody = document.getElementById('itemListBody');
+      listBody.innerHTML = receipt.items.map(item => `
+        <div class="item-row">
+          <div class="item-name">${item.name}</div>
+          <div class="item-color">${item.color}</div>
+          <div class="item-category">${item.category}</div>
+          <div><span class="status-badge ${item.status}">${formatStatus(item.status)}</span></div>
+          <div class="item-action">
+            <button class="btn btn-sm" onclick="showItem('${item.id}', '${item.heartlandItemId}', '${receipt.vendor}')">${item.status === 'completed' ? 'View' : 'Edit'}</button>
+          </div>
+        </div>
+      `).join('');
+
+      showPage('receipt');
+      breadcrumb.innerHTML = `<a href="#" onclick="showDashboard(); return false;">Dashboard</a> <span>→</span> <span>${receipt.vendor}</span>`;
+    }
+
+    async function showItem(itemId, heartlandItemId, vendorName) {
+      isQuickAdd = false;
+      
+      // If we have heartlandItemId, use it to fetch fresh item data
+      let item;
+      if (heartlandItemId) {
+        const response = await fetch(`/api/items/${itemId}?itemId=${heartlandItemId}`);
+        item = await response.json();
+        if (!item.vendor || item.vendor === 'Unknown Vendor') {
+          item.vendor = vendorName || 'Unknown Vendor';
+        }
+      } else {
+        const response = await fetch(`/api/items/${itemId}`);
+        item = await response.json();
+      }
+
+      document.getElementById('itemTitle').textContent = item.name;
+      document.getElementById('itemSubtitle').textContent = `${item.vendor} • ${item.color}`;
+      
+      // Set fields as read-only for receipt items
+      const productNameInput = document.getElementById('productName');
+      const vendorInput = document.getElementById('vendor');
+      const colorInput = document.getElementById('color');
+      const categoryInput = document.getElementById('category');
+      
+      productNameInput.value = item.name;
+      productNameInput.readOnly = true;
+      vendorInput.value = item.vendor;
+      vendorInput.readOnly = true;
+      colorInput.value = item.color;
+      colorInput.readOnly = true;
+      categoryInput.value = item.category;
+      categoryInput.readOnly = true;
+      
+      document.getElementById('vendorDescription').value = '';
+
+      // Reset upload state
+      uploadedFiles = [];
+      document.getElementById('previewGrid').innerHTML = '';
+      document.getElementById('outputSection').classList.remove('visible');
+      updateGenerateButton();
+
+      document.getElementById('backToReceipt').onclick = (e) => {
+        e.preventDefault();
+        showReceipt(currentReceiptId);
+      };
+      document.getElementById('backToReceipt').textContent = '← Back to Receipt';
+
+      showPage('item');
+      breadcrumb.innerHTML = `<a href="#" onclick="showDashboard(); return false;">Dashboard</a> <span>→</span> <a href="#" onclick="showReceipt('${currentReceiptId}'); return false;">${item.vendor}</a> <span>→</span> <span>${item.name}</span>`;
+    }
+
+    function showQuickAdd() {
+      isQuickAdd = true;
+      document.getElementById('itemTitle').textContent = 'Quick Add';
+      document.getElementById('itemSubtitle').textContent = 'Manually enter product details';
+      
+      // Make fields editable and clear them
+      const productNameInput = document.getElementById('productName');
+      const vendorInput = document.getElementById('vendor');
+      const colorInput = document.getElementById('color');
+      const categoryInput = document.getElementById('category');
+      
+      productNameInput.value = '';
+      productNameInput.readOnly = false;
+      vendorInput.value = '';
+      vendorInput.readOnly = false;
+      colorInput.value = '';
+      colorInput.readOnly = false;
+      categoryInput.value = '';
+      categoryInput.readOnly = false;
+      
+      document.getElementById('vendorDescription').value = '';
+
+      // Reset upload state
+      uploadedFiles = [];
+      document.getElementById('previewGrid').innerHTML = '';
+      document.getElementById('outputSection').classList.remove('visible');
+      updateGenerateButton();
+
+      document.getElementById('backToReceipt').onclick = (e) => {
+        e.preventDefault();
+        showDashboard();
+      };
+      document.getElementById('backToReceipt').textContent = '← Back to Dashboard';
+
+      showPage('item');
+      breadcrumb.innerHTML = `<a href="#" onclick="showDashboard(); return false;">Dashboard</a> <span>→</span> <span>Quick Add</span>`;
+    }
+
+    function showDashboard() {
+      showPage('dashboard');
+      breadcrumb.innerHTML = '<span>Dashboard</span>';
+      loadDashboard();
+    }
+
+    function showPage(page) {
+      dashboardPage.classList.remove('active');
+      receiptPage.classList.remove('active');
+      itemPage.classList.remove('active');
+
+      if (page === 'dashboard') dashboardPage.classList.add('active');
+      else if (page === 'receipt') receiptPage.classList.add('active');
+      else if (page === 'item') itemPage.classList.add('active');
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatStatus(status) {
+      return status.replace('_', ' ');
+    }
+
+    // Image upload handlers
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const previewGrid = document.getElementById('previewGrid');
+    const generateBtn = document.getElementById('generateBtn');
+    const loadingState = document.getElementById('loadingState');
+    const outputSection = document.getElementById('outputSection');
+    const descriptionOutput = document.getElementById('descriptionOutput');
+    const metaOutput = document.getElementById('metaOutput');
+    const charCount = document.getElementById('charCount');
+    const successMessage = document.getElementById('successMessage');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+      for (const file of files) {
+        if (file.type.startsWith('image/')) {
+          uploadedFiles.push(file);
+          addPreview(file);
+        }
+      }
+      updateGenerateButton();
+    }
+
+    function addPreview(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const div = document.createElement('div');
+        div.className = 'preview-item';
+        div.innerHTML = `
+          <img src="${e.target.result}" alt="Preview">
+          <button onclick="removeImage(this, '${file.name}')">&times;</button>
+        `;
+        previewGrid.appendChild(div);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeImage(btn, fileName) {
+      uploadedFiles = uploadedFiles.filter(f => f.name !== fileName);
+      btn.parentElement.remove();
+      updateGenerateButton();
+    }
+
+    function updateGenerateButton() {
+      const productName = document.getElementById('productName').value.trim();
+      generateBtn.disabled = !(uploadedFiles.length > 0 && productName);
+    }
+
+    // Listen for input on product name (for Quick Add mode)
+    document.getElementById('productName').addEventListener('input', updateGenerateButton);
+
+    // Generate description
+    generateBtn.addEventListener('click', generateDescription);
+    document.getElementById('regenerateBtn').addEventListener('click', generateDescription);
+
+    async function generateDescription() {
+      const formData = new FormData();
+      formData.append('productName', document.getElementById('productName').value);
+      formData.append('vendor', document.getElementById('vendor').value);
+      formData.append('color', document.getElementById('color').value);
+      formData.append('category', document.getElementById('category').value);
+      formData.append('vendorDescription', document.getElementById('vendorDescription').value);
+
+      uploadedFiles.forEach(file => {
+        formData.append('images', file);
+      });
+
+      generateBtn.style.display = 'none';
+      loadingState.style.display = 'block';
+      outputSection.classList.remove('visible');
+
+      try {
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          descriptionOutput.textContent = data.description;
+          metaOutput.textContent = data.metaDescription;
+          updateCharCount();
+          outputSection.classList.add('visible');
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (error) {
+        alert('Error generating description: ' + error.message);
+      } finally {
+        loadingState.style.display = 'none';
+        generateBtn.style.display = 'block';
+      }
+    }
+
+    metaOutput.addEventListener('input', updateCharCount);
+
+    function updateCharCount() {
+      const length = metaOutput.textContent.length;
+      charCount.textContent = `${length} / 160 characters`;
+      charCount.classList.toggle('over', length > 160);
+    }
+
+    document.getElementById('approveBtn').addEventListener('click', async () => {
+      const text = `${descriptionOutput.textContent}\n\n---\n\nMeta Description:\n${metaOutput.textContent}`;
+      await navigator.clipboard.writeText(text);
+      successMessage.classList.add('visible');
+      setTimeout(() => successMessage.classList.remove('visible'), 3000);
+    });
+  </script>
+</body>
+</html>

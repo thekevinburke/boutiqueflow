@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InventoryIQ - BoutiqueFlow</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .header {
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #222;
+    }
+
+    .logo span {
+      color: #e91e8a;
+    }
+
+    .nav-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .nav-breadcrumb a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .nav-breadcrumb a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .page-title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      margin: 0;
+      color: #222;
+    }
+
+    .pro-badge {
+      background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .page-subtitle {
+      color: #666;
+      margin: 0;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      background: white;
+      padding: 6px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+      width: fit-content;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #333;
+      background: #f5f5f5;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%);
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Stats Row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #222;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #666;
+    }
+
+    .stat-card.warning .stat-number { color: #f59e0b; }
+    .stat-card.danger .stat-number { color: #dc2626; }
+    .stat-card.success .stat-number { color: #10b981; }
+    .stat-card.info .stat-number { color: #007bff; }
+
+    /* Filters */
+    .filters-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .filter-select {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 0.9rem;
+      color: #333;
+      background: white;
+      cursor: pointer;
+      min-width: 150px;
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: #007bff;
+    }
+
+    /* Dead Stock Table */
+    .data-table {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: grid;
+      padding: 14px 20px;
+      background: #f8f9fa;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #666;
+      border-bottom: 1px solid #e9ecef;
+      letter-spacing: 0.3px;
+    }
+
+    .dead-stock-header {
+      grid-template-columns: 2fr 1fr 1fr 100px 100px 120px 100px;
+    }
+
+    .size-gap-header {
+      grid-template-columns: 2fr 1fr repeat(6, 80px) 100px;
+    }
+
+    .table-row {
+      display: grid;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      align-items: center;
+      transition: background 0.15s;
+    }
+
+    .table-row:hover {
+      background: #f8faff;
+    }
+
+    .table-row:last-child {
+      border-bottom: none;
+    }
+
+    .dead-stock-row {
+      grid-template-columns: 2fr 1fr 1fr 100px 100px 120px 100px;
+    }
+
+    .size-gap-row {
+      grid-template-columns: 2fr 1fr repeat(6, 80px) 100px;
+    }
+
+    .item-name {
+      font-weight: 500;
+      color: #222;
+    }
+
+    .item-meta {
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .days-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .days-badge.warning {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .days-badge.danger {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .days-badge.critical {
+      background: #dc2626;
+      color: white;
+    }
+
+    .price {
+      font-weight: 500;
+      color: #222;
+    }
+
+    .suggested-action {
+      font-size: 0.8rem;
+      color: #007bff;
+      font-weight: 500;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-outline {
+      background: white;
+      color: #666;
+      border: 1px solid #ddd;
+    }
+
+    .btn-outline:hover {
+      border-color: #bbb;
+      color: #333;
+    }
+
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0056b3;
+    }
+
+    /* Size Gap Styles */
+    .size-cell {
+      text-align: center;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .size-cell.stockout {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .size-cell.low {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .size-cell.good {
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    .size-cell.overstock {
+      background: #e0f2fe;
+      color: #0277bd;
+    }
+
+    .size-cell.na {
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+
+    .trend-indicator {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .trend-indicator.up {
+      color: #dc2626;
+    }
+
+    .trend-indicator.down {
+      color: #10b981;
+    }
+
+    /* Summary Cards */
+    .summary-section {
+      margin-bottom: 24px;
+    }
+
+    .summary-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #222;
+      margin-bottom: 12px;
+    }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .summary-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .summary-card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .summary-card-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 4px;
+    }
+
+    .summary-card-subtitle {
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .summary-card.highlight {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 1px solid #f59e0b;
+    }
+
+    .summary-card.highlight .summary-card-value {
+      color: #b45309;
+    }
+
+    /* Insight Box */
+    .insight-box {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border: 1px solid #93c5fd;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .insight-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .insight-content h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1e40af;
+      margin-bottom: 6px;
+    }
+
+    .insight-content p {
+      font-size: 0.9rem;
+      color: #1e3a8a;
+      margin: 0;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+    }
+
+    .legend-dot.stockout { background: #fee2e2; border: 1px solid #dc2626; }
+    .legend-dot.low { background: #fef3c7; border: 1px solid #f59e0b; }
+    .legend-dot.good { background: #d1fae5; border: 1px solid #10b981; }
+    .legend-dot.overstock { background: #e0f2fe; border: 1px solid #0277bd; }
+
+    /* Empty State */
+    .empty-state {
+      background: white;
+      border-radius: 12px;
+      padding: 48px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+
+    .empty-state h3 {
+      margin: 0 0 8px 0;
+      font-size: 1.1rem;
+      color: #222;
+    }
+
+    .empty-state p {
+      margin: 0;
+      color: #666;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">Boutique<span>Flow</span></div>
+    <div style="display: flex; align-items: center; gap: 24px;">
+      <a href="first-dibs.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
+        First Dibs
+        <span style="background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">PRO</span>
+      </a>
+      <a href="retargeting.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
+        Retargeting
+        <span style="background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">PRO</span>
+      </a>
+      <a href="inventoryiq.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
+        InventoryIQ
+        <span style="background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">PRO</span>
+      </a>
+      <a href="salesiq.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
+        SalesIQ
+        <span style="background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">PRO</span>
+      </a>
+      <a href="support.html" style="text-decoration: none; color: #666; font-weight: 500; font-size: 0.9rem;">Support</a>
+      <div class="nav-breadcrumb">
+        <a href="index.html">Dashboard</a>
+        <span>→</span>
+        <span>InventoryIQ</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <div class="page-title-row">
+          <h1 class="page-title">InventoryIQ</h1>
+          <span class="pro-badge">PRO</span>
+        </div>
+        <p class="page-subtitle">Smart insights to optimize your inventory</p>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('deadstock')">Dead Stock</button>
+      <button class="tab-btn" onclick="switchTab('sizegaps')">Size Gaps</button>
+    </div>
+
+    <!-- Dead Stock Tab -->
+    <div class="tab-content active" id="deadstock-tab">
+      <!-- Stats Row -->
+      <div class="stats-row">
+        <div class="stat-card warning">
+          <div class="stat-number">23</div>
+          <div class="stat-label">Items 60+ Days</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-number">8</div>
+          <div class="stat-label">Items 90+ Days</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-number">$4,280</div>
+          <div class="stat-label">Capital Tied Up</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-number">$890</div>
+          <div class="stat-label">Recovered This Month</div>
+        </div>
+      </div>
+
+      <!-- Insight Box -->
+      <div class="insight-box">
+        <div class="insight-icon">💡</div>
+        <div class="insight-content">
+          <h4>Top Recommendation</h4>
+          <p>You have 3 items from the Spring collection sitting 90+ days. Consider a 30% markdown or bundling them together to free up $1,240 in capital before new fall arrivals.</p>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-row">
+        <select class="filter-select" id="daysFilter">
+          <option value="all">All Aging Items</option>
+          <option value="60">60+ Days</option>
+          <option value="90" selected>90+ Days</option>
+          <option value="120">120+ Days</option>
+        </select>
+        <select class="filter-select" id="categoryFilter">
+          <option value="all">All Categories</option>
+          <option value="dresses">Dresses</option>
+          <option value="tops">Tops</option>
+          <option value="bottoms">Bottoms</option>
+          <option value="outerwear">Outerwear</option>
+          <option value="accessories">Accessories</option>
+        </select>
+        <select class="filter-select" id="vendorFilter">
+          <option value="all">All Vendors</option>
+          <option value="free-people">Free People</option>
+          <option value="vince">Vince</option>
+          <option value="rails">Rails</option>
+          <option value="mother">Mother</option>
+        </select>
+      </div>
+
+      <!-- Dead Stock Table -->
+      <div class="data-table">
+        <div class="table-header dead-stock-header">
+          <div>Item</div>
+          <div>Vendor</div>
+          <div>Category</div>
+          <div>Days</div>
+          <div>Price</div>
+          <div>Suggested</div>
+          <div>Action</div>
+        </div>
+        <div id="deadStockBody">
+          <!-- Rows rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Size Gaps Tab -->
+    <div class="tab-content" id="sizegaps-tab">
+      <!-- Stats Row -->
+      <div class="stats-row">
+        <div class="stat-card danger">
+          <div class="stat-number">12</div>
+          <div class="stat-label">Stockouts (Size/Style)</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-number">18</div>
+          <div class="stat-label">Low Stock Alerts</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-number">$2,100</div>
+          <div class="stat-label">Est. Missed Sales</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-number">M</div>
+          <div class="stat-label">Most Demanded Size</div>
+        </div>
+      </div>
+
+      <!-- Insight Box -->
+      <div class="insight-box">
+        <div class="insight-icon">📊</div>
+        <div class="insight-content">
+          <h4>Size Pattern Detected</h4>
+          <p>Size M consistently sells out 3x faster than other sizes across dresses and tops. Consider adjusting your buy ratios: increase M by 20%, decrease XS by 15%.</p>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot stockout"></div>
+          <span>Stockout</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot low"></div>
+          <span>Low (1-2)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot good"></div>
+          <span>Good (3-5)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot overstock"></div>
+          <span>Overstock (6+)</span>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters-row">
+        <select class="filter-select" id="sizeCategory">
+          <option value="all">All Categories</option>
+          <option value="dresses" selected>Dresses</option>
+          <option value="tops">Tops</option>
+          <option value="bottoms">Bottoms</option>
+          <option value="outerwear">Outerwear</option>
+        </select>
+        <select class="filter-select" id="sizeVendor">
+          <option value="all">All Vendors</option>
+          <option value="free-people">Free People</option>
+          <option value="zimmermann">Zimmermann</option>
+          <option value="rails">Rails</option>
+        </select>
+        <select class="filter-select" id="sizeView">
+          <option value="current">Current Stock</option>
+          <option value="velocity">Sell-Through Rate</option>
+        </select>
+      </div>
+
+      <!-- Size Gap Table -->
+      <div class="data-table">
+        <div class="table-header size-gap-header">
+          <div>Item</div>
+          <div>Vendor</div>
+          <div>XS</div>
+          <div>S</div>
+          <div>M</div>
+          <div>L</div>
+          <div>XL</div>
+          <div>XXL</div>
+          <div>Trend</div>
+        </div>
+        <div id="sizeGapBody">
+          <!-- Rows rendered by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Dead Stock Data
+    const deadStockItems = [
+      {
+        id: 1,
+        name: 'Floral Maxi Dress',
+        color: 'Blue Multi',
+        size: 'XS',
+        vendor: 'Free People',
+        category: 'Dresses',
+        days: 127,
+        price: 168,
+        suggested: '40% off'
+      },
+      {
+        id: 2,
+        name: 'Linen Blazer',
+        color: 'Oatmeal',
+        size: 'XL',
+        vendor: 'Vince',
+        category: 'Outerwear',
+        days: 112,
+        price: 425,
+        suggested: '30% off'
+      },
+      {
+        id: 3,
+        name: 'Silk Cami',
+        color: 'Blush',
+        size: 'XS',
+        vendor: 'Rails',
+        category: 'Tops',
+        days: 98,
+        price: 138,
+        suggested: '25% off'
+      },
+      {
+        id: 4,
+        name: 'Wide Leg Trouser',
+        color: 'Navy',
+        size: 'XXL',
+        vendor: 'Vince',
+        category: 'Bottoms',
+        days: 94,
+        price: 295,
+        suggested: '25% off'
+      },
+      {
+        id: 5,
+        name: 'Embroidered Blouse',
+        color: 'Ivory',
+        size: 'XS',
+        vendor: 'Free People',
+        category: 'Tops',
+        days: 91,
+        price: 118,
+        suggested: '20% off'
+      },
+      {
+        id: 6,
+        name: 'Cashmere Cardigan',
+        color: 'Heather Grey',
+        size: 'L',
+        vendor: 'Vince',
+        category: 'Outerwear',
+        days: 88,
+        price: 385,
+        suggested: '20% off'
+      },
+      {
+        id: 7,
+        name: 'Printed Midi Skirt',
+        color: 'Botanical',
+        size: 'XS',
+        vendor: 'Rails',
+        category: 'Bottoms',
+        days: 76,
+        price: 178,
+        suggested: '15% off'
+      },
+      {
+        id: 8,
+        name: 'Denim Jacket',
+        color: 'Light Wash',
+        size: 'XXL',
+        vendor: 'Mother',
+        category: 'Outerwear',
+        days: 64,
+        price: 298,
+        suggested: '15% off'
+      }
+    ];
+
+    // Size Gap Data
+    const sizeGapItems = [
+      {
+        id: 1,
+        name: 'Floral Midi Dress',
+        vendor: 'Zimmermann',
+        sizes: { xs: 3, s: 1, m: 0, l: 2, xl: 4, xxl: 5 },
+        trend: 'up'
+      },
+      {
+        id: 2,
+        name: 'Cotton Maxi Dress',
+        vendor: 'Free People',
+        sizes: { xs: 4, s: 2, m: 0, l: 0, xl: 3, xxl: 6 },
+        trend: 'up'
+      },
+      {
+        id: 3,
+        name: 'Wrap Dress',
+        vendor: 'Rails',
+        sizes: { xs: 2, s: 3, m: 1, l: 4, xl: 5, xxl: null },
+        trend: 'down'
+      },
+      {
+        id: 4,
+        name: 'Shirt Dress',
+        vendor: 'Rails',
+        sizes: { xs: 6, s: 4, m: 2, l: 1, xl: 0, xxl: null },
+        trend: 'up'
+      },
+      {
+        id: 5,
+        name: 'Slip Dress',
+        vendor: 'Zimmermann',
+        sizes: { xs: 1, s: 0, m: 0, l: 3, xl: 4, xxl: 2 },
+        trend: 'up'
+      }
+    ];
+
+    // Render Functions
+    function renderDeadStock() {
+      const body = document.getElementById('deadStockBody');
+      
+      body.innerHTML = deadStockItems.map(item => `
+        <div class="table-row dead-stock-row">
+          <div>
+            <div class="item-name">${item.name}</div>
+            <div class="item-meta">${item.color} • Size ${item.size}</div>
+          </div>
+          <div class="item-meta">${item.vendor}</div>
+          <div class="item-meta">${item.category}</div>
+          <div>
+            <span class="days-badge ${getDaysBadgeClass(item.days)}">${item.days} days</span>
+          </div>
+          <div class="price">$${item.price}</div>
+          <div class="suggested-action">${item.suggested}</div>
+          <div>
+            <button class="btn btn-outline" onclick="markdownItem(${item.id})">Markdown</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderSizeGaps() {
+      const body = document.getElementById('sizeGapBody');
+      
+      body.innerHTML = sizeGapItems.map(item => `
+        <div class="table-row size-gap-row">
+          <div>
+            <div class="item-name">${item.name}</div>
+          </div>
+          <div class="item-meta">${item.vendor}</div>
+          <div class="size-cell ${getSizeClass(item.sizes.xs)}">${formatSize(item.sizes.xs)}</div>
+          <div class="size-cell ${getSizeClass(item.sizes.s)}">${formatSize(item.sizes.s)}</div>
+          <div class="size-cell ${getSizeClass(item.sizes.m)}">${formatSize(item.sizes.m)}</div>
+          <div class="size-cell ${getSizeClass(item.sizes.l)}">${formatSize(item.sizes.l)}</div>
+          <div class="size-cell ${getSizeClass(item.sizes.xl)}">${formatSize(item.sizes.xl)}</div>
+          <div class="size-cell ${getSizeClass(item.sizes.xxl)}">${formatSize(item.sizes.xxl)}</div>
+          <div>
+            <span class="trend-indicator ${item.trend}">
+              ${item.trend === 'up' ? '↑ High demand' : '↓ Slowing'}
+            </span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Helper Functions
+    function getDaysBadgeClass(days) {
+      if (days >= 120) return 'critical';
+      if (days >= 90) return 'danger';
+      return 'warning';
+    }
+
+    function getSizeClass(qty) {
+      if (qty === null) return 'na';
+      if (qty === 0) return 'stockout';
+      if (qty <= 2) return 'low';
+      if (qty <= 5) return 'good';
+      return 'overstock';
+    }
+
+    function formatSize(qty) {
+      if (qty === null) return '—';
+      return qty;
+    }
+
+    function switchTab(tab) {
+      // Update buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Update content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(`${tab}-tab`).classList.add('active');
+    }
+
+    function markdownItem(id) {
+      alert(`Opening markdown workflow for item ${id}...`);
+      // In real app, this would open a modal or redirect to markdown flow
+    }
+
+    // Initial Render
+    renderDeadStock();
+    renderSizeGaps();
+  </script>
+</body>
+</html>
