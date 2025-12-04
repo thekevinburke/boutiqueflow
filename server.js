@@ -144,7 +144,7 @@ async function updateItemStatus(itemType, heartlandId, status, receiptId = null,
       INSERT INTO processed_items (item_type, heartland_id, receipt_id, status, processed_at, processed_by)
       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)
       ON CONFLICT (item_type, heartland_id)
-      DO UPDATE SET status = $4, processed_at = CURRENT_TIMESTAMP, processed_by = $5, updated_at = CURRENT_TIMESTAMP
+      DO UPDATE SET status = $4, receipt_id = $3, processed_at = CURRENT_TIMESTAMP, processed_by = $5, updated_at = CURRENT_TIMESTAMP
     `, [itemType, heartlandId.toString(), receiptId, status, username]);
     return true;
   } catch (error) {
