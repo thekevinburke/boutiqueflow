@@ -97,7 +97,16 @@ async function heartlandRequest(endpoint, options = {}) {
   });
   
   if (!response.ok) {
-    throw new Error(`Heartland API error: ${response.status} ${response.statusText}`);
+    // Try to get more details from the response
+    let errorDetails = '';
+    try {
+      const errorBody = await response.text();
+      errorDetails = ` - ${errorBody}`;
+      console.error('Heartland API error details:', errorBody);
+    } catch (e) {
+      // Ignore if we can't read the body
+    }
+    throw new Error(`Heartland API error: ${response.status} ${response.statusText}${errorDetails}`);
   }
   
   return response.json();
