@@ -168,22 +168,28 @@ app.get('/api/receipts', async (req, res) => {
     const data = await heartlandRequest(`/purchasing/receipts?per_page=50&_filter[created_at][$gte]=${dateFilter}`);
     
     const receipts = await Promise.all(data.results.map(async (r) => {
-      // Get vendor name
       let vendorName = 'Unknown Vendor';
-      if (r.order_id) {
-        try {
-          const order = await heartlandRequest(`/purchasing/orders/${r.order_id}`);
-          vendorName = await getVendorName(order.vendor_id);
-        } catch (e) {
-          console.error('Error fetching order:', e);
-        }
-      }
-      
-      // Get line count
       let itemCount = 0;
+      
+      // Get lines and extract vendor from first item
       try {
-        const lines = await heartlandRequest(`/purchasing/receipts/${r.id}/lines?per_page=1`);
+        const lines = await heartlandRequest(`/purchasing/receipts/${r.id}/lines?per_page=10`);
         itemCount = lines.total || 0;
+        
+        // Get vendor from first item's primary_vendor_id
+        if (lines.results && lines.results.length > 0) {
+          const firstLine = lines.results[0];
+          if (firstLine.item_id) {
+            try {
+              const item = await heartlandRequest(`/items/${firstLine.item_id}`);
+              if (item.primary_vendor_id) {
+                vendorName = await getVendorName(item.primary_vendor_id);
+              }
+            } catch (e) {
+              console.error('Error fetching item for vendor:', e);
+            }
+          }
+        }
       } catch (e) {
         console.error('Error fetching receipt lines:', e);
       }
@@ -193,7 +199,7 @@ app.get('/api/receipts', async (req, res) => {
         heartlandId: r.id,
         date: r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
         vendor: vendorName,
-        poNumber: r.public_id || `PO-${r.order_id || r.id}`,
+        poNumber: r.public_id || `REC-${r.id}`,
         itemCount: itemCount,
         status: r.status === 'complete' ? 'completed' : r.status === 'pending' ? 'new' : 'in_progress',
       };
@@ -215,16 +221,7 @@ app.get('/api/receipts/:id', async (req, res) => {
     const receipt = await heartlandRequest(`/purchasing/receipts/${heartlandId}`);
     const linesData = await heartlandRequest(`/purchasing/receipts/${heartlandId}/lines?per_page=100`);
     
-    // Get vendor name from order
     let vendorName = 'Unknown Vendor';
-    if (receipt.order_id) {
-      try {
-        const order = await heartlandRequest(`/purchasing/orders/${receipt.order_id}`);
-        vendorName = await getVendorName(order.vendor_id);
-      } catch (e) {
-        console.error('Error fetching order:', e);
-      }
-    }
     
     // Fetch item details for each line
     const items = await Promise.all(linesData.results.map(async (line) => {
@@ -235,6 +232,11 @@ app.get('/api/receipts/:id', async (req, res) => {
       
       try {
         itemDetails = await heartlandRequest(`/items/${line.item_id}`);
+        
+        // Get vendor from first item's primary_vendor_id (set once for the receipt)
+        if (vendorName === 'Unknown Vendor' && itemDetails.primary_vendor_id) {
+          vendorName = await getVendorName(itemDetails.primary_vendor_id);
+        }
       } catch (e) {
         console.error(`Error fetching item ${line.item_id}:`, e);
       }
@@ -258,7 +260,7 @@ app.get('/api/receipts/:id', async (req, res) => {
       heartlandId: receipt.id,
       date: receipt.created_at ? receipt.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
       vendor: vendorName,
-      poNumber: receipt.public_id || `PO-${receipt.order_id || receipt.id}`,
+      poNumber: receipt.public_id || `REC-${receipt.id}`,
       itemCount: items.length,
       status: receipt.status === 'complete' ? 'completed' : receipt.status === 'pending' ? 'new' : 'in_progress',
       items: items,
