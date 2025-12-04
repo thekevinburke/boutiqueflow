@@ -337,6 +337,7 @@ app.get('/api/receipts', async (req, res) => {
       let vendorName = 'Unknown Vendor';
       let itemCount = 0;
       let itemIds = [];
+      let gridIds = new Set();
       
       // Get lines and extract vendor from first item
       try {
@@ -359,46 +360,57 @@ app.get('/api/receipts', async (req, res) => {
               if (item.primary_vendor_id) {
                 vendorName = await getVendorName(item.primary_vendor_id);
               }
+              // Also grab grid_id while we have the item
+              if (item.grid_id) {
+                gridIds.add(item.grid_id.toString());
+              }
             } catch (e) {
               console.error('Error fetching item for vendor:', e);
             }
+          }
+        }
+        
+        // Get grid IDs for remaining items
+        for (const line of lines.results || []) {
+          if (line.item_id && line.grid_id) {
+            gridIds.add(line.grid_id.toString());
           }
         }
       } catch (e) {
         console.error('Error fetching receipt lines:', e);
       }
       
-      // Calculate receipt status from item statuses in database
+      // Calculate receipt status from database (query by receipt_id)
       let receiptStatus = 'new';
-      if (itemIds.length > 0) {
-        try {
-          const statusResult = await pool.query(
-            `SELECT status, COUNT(*) as count 
-             FROM processed_items 
-             WHERE heartland_id = ANY($1::text[])
-             GROUP BY status`,
-            [itemIds.map(id => id.toString())]
-          );
-          
-          const statusCounts = {};
-          let totalTracked = 0;
-          for (const row of statusResult.rows) {
-            statusCounts[row.status] = parseInt(row.count);
-            totalTracked += parseInt(row.count);
-          }
-          
-          const completed = statusCounts['completed'] || 0;
-          const skipped = statusCounts['skipped'] || 0;
-          const done = completed + skipped;
-          
-          if (done >= itemCount && itemCount > 0) {
+      try {
+        const statusResult = await pool.query(
+          `SELECT status, COUNT(*) as count 
+           FROM processed_items 
+           WHERE receipt_id = $1
+           GROUP BY status`,
+          [r.id.toString()]
+        );
+        
+        let completed = 0;
+        let skipped = 0;
+        for (const row of statusResult.rows) {
+          if (row.status === 'completed') completed = parseInt(row.count);
+          if (row.status === 'skipped') skipped = parseInt(row.count);
+        }
+        
+        const done = completed + skipped;
+        
+        if (done > 0) {
+          // Count unique grids to determine product count
+          const productCount = gridIds.size || 1;
+          if (done >= productCount) {
             receiptStatus = 'completed';
-          } else if (done > 0) {
+          } else {
             receiptStatus = 'in_progress';
           }
-        } catch (e) {
-          console.error('Error checking receipt status:', e);
         }
+      } catch (e) {
+        console.error('Error checking receipt status:', e);
       }
       
       receipts.push({
@@ -662,7 +674,7 @@ app.get('/api/grids/:id', async (req, res) => {
 app.put('/api/items/:id', async (req, res) => {
   try {
     const itemId = req.query.itemId || req.params.id.replace('ITEM-', '');
-    const { longDescription, status } = req.body;
+    const { longDescription, status, receiptId } = req.body;
     
     // If there's a description, update Heartland
     if (longDescription !== undefined) {
@@ -674,9 +686,10 @@ app.put('/api/items/:id', async (req, res) => {
       });
     }
     
-    // Update status in database
+    // Update status in database (include receiptId for status tracking)
     const newStatus = status || 'completed';
-    await updateItemStatus('item', itemId, newStatus, null, req.username);
+    const cleanReceiptId = receiptId ? receiptId.replace('REC-', '') : null;
+    await updateItemStatus('item', itemId, newStatus, cleanReceiptId, req.username);
     
     res.json({ success: true, status: newStatus });
   } catch (error) {
@@ -689,7 +702,7 @@ app.put('/api/items/:id', async (req, res) => {
 app.put('/api/grids/:id', async (req, res) => {
   try {
     const gridId = req.params.id.replace('GRID-', '');
-    const { longDescription, status } = req.body;
+    const { longDescription, status, receiptId } = req.body;
     
     // If there's a description, update Heartland
     if (longDescription !== undefined) {
@@ -701,9 +714,10 @@ app.put('/api/grids/:id', async (req, res) => {
       });
     }
     
-    // Update status in database
+    // Update status in database (include receiptId for status tracking)
     const newStatus = status || 'completed';
-    await updateItemStatus('grid', gridId, newStatus, null, req.username);
+    const cleanReceiptId = receiptId ? receiptId.replace('REC-', '') : null;
+    await updateItemStatus('grid', gridId, newStatus, cleanReceiptId, req.username);
     
     res.json({ success: true, status: newStatus });
   } catch (error) {

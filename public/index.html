@@ -1297,7 +1297,7 @@
         } else if (currentItemType === 'grid') {
           // Save to grid
           endpoint = `/api/grids/${currentGridId}`;
-          body = { longDescription: description };
+          body = { longDescription: description, receiptId: currentReceiptId };
           
           const response = await fetch(endpoint, {
             method: 'PUT',
@@ -1317,7 +1317,7 @@
         } else {
           // Save to individual item
           endpoint = `/api/items/${currentHeartlandItemId}?itemId=${currentHeartlandItemId}`;
-          body = { longDescription: description };
+          body = { longDescription: description, receiptId: currentReceiptId };
           
           const response = await fetch(endpoint, {
             method: 'PUT',
