@@ -331,25 +331,51 @@ app.get('/api/receipts', async (req, res) => {
     
     const data = await heartlandRequest(`/purchasing/receipts?per_page=50&_filter[created_at][$gte]=${dateFilter}&_filter[status]=complete&sort[]=updated_at,desc`);
     
-    // Process receipts sequentially to avoid race conditions
+    // Get all receipt IDs to batch query statuses
+    const receiptIds = data.results.map(r => r.id.toString());
+    
+    // Batch query all statuses from database
+    let statusMap = {};
+    try {
+      const statusResult = await pool.query(
+        `SELECT receipt_id, status, COUNT(*) as count 
+         FROM processed_items 
+         WHERE receipt_id = ANY($1::text[])
+         GROUP BY receipt_id, status`,
+        [receiptIds]
+      );
+      
+      for (const row of statusResult.rows) {
+        if (!statusMap[row.receipt_id]) {
+          statusMap[row.receipt_id] = { completed: 0, skipped: 0 };
+        }
+        if (row.status === 'completed') statusMap[row.receipt_id].completed = parseInt(row.count);
+        if (row.status === 'skipped') statusMap[row.receipt_id].skipped = parseInt(row.count);
+      }
+    } catch (e) {
+      console.error('Error batch querying statuses:', e);
+    }
+    
+    // Process receipts
     const receipts = [];
     for (const r of data.results) {
       let vendorName = 'Unknown Vendor';
       let itemCount = 0;
-      let itemIds = [];
-      let gridIds = new Set();
+      let gridCount = 0;
       
       // Get lines and extract vendor from first item
       try {
         const lines = await heartlandRequest(`/purchasing/receipts/${r.id}/lines?per_page=100`);
         itemCount = lines.total || 0;
         
-        // Collect item IDs for status check
+        // Count unique grids
+        const gridIds = new Set();
         for (const line of lines.results || []) {
-          if (line.item_id) {
-            itemIds.push(line.item_id);
+          if (line.grid_id) {
+            gridIds.add(line.grid_id);
           }
         }
+        gridCount = gridIds.size || itemCount; // Fall back to item count if no grids
         
         // Get vendor from first item's primary_vendor_id
         if (lines.results && lines.results.length > 0) {
@@ -360,57 +386,27 @@ app.get('/api/receipts', async (req, res) => {
               if (item.primary_vendor_id) {
                 vendorName = await getVendorName(item.primary_vendor_id);
               }
-              // Also grab grid_id while we have the item
-              if (item.grid_id) {
-                gridIds.add(item.grid_id.toString());
-              }
             } catch (e) {
               console.error('Error fetching item for vendor:', e);
             }
-          }
-        }
-        
-        // Get grid IDs for remaining items
-        for (const line of lines.results || []) {
-          if (line.item_id && line.grid_id) {
-            gridIds.add(line.grid_id.toString());
           }
         }
       } catch (e) {
         console.error('Error fetching receipt lines:', e);
       }
       
-      // Calculate receipt status from database (query by receipt_id)
+      // Calculate receipt status from pre-fetched data
       let receiptStatus = 'new';
-      try {
-        const statusResult = await pool.query(
-          `SELECT status, COUNT(*) as count 
-           FROM processed_items 
-           WHERE receipt_id = $1
-           GROUP BY status`,
-          [r.id.toString()]
-        );
-        
-        let completed = 0;
-        let skipped = 0;
-        for (const row of statusResult.rows) {
-          if (row.status === 'completed') completed = parseInt(row.count);
-          if (row.status === 'skipped') skipped = parseInt(row.count);
-        }
-        
-        const done = completed + skipped;
-        
+      const stats = statusMap[r.id.toString()];
+      if (stats) {
+        const done = stats.completed + stats.skipped;
         if (done > 0) {
-          // Count unique grids to determine product count
-          const productCount = gridIds.size || 1;
-          if (done >= productCount) {
+          if (done >= gridCount) {
             receiptStatus = 'completed';
           } else {
             receiptStatus = 'in_progress';
           }
         }
-      } catch (e) {
-        console.error('Error checking receipt status:', e);
       }
       
       receipts.push({
@@ -420,6 +416,7 @@ app.get('/api/receipts', async (req, res) => {
         vendor: vendorName,
         receiptNumber: r.public_id || `${r.id}`,
         itemCount: itemCount,
+        gridCount: gridCount,
         status: receiptStatus,
       });
     }
@@ -975,6 +972,16 @@ app.get('/api/health', async (req, res) => {
       database: 'unknown',
       anthropic: process.env.ANTHROPIC_API_KEY ? 'configured' : 'missing',
     });
+  }
+});
+
+// Debug endpoint to see processed items in database
+app.get('/api/debug/processed-items', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM processed_items ORDER BY updated_at DESC LIMIT 50');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
