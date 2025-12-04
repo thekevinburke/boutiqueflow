@@ -336,11 +336,19 @@ app.get('/api/receipts', async (req, res) => {
     for (const r of data.results) {
       let vendorName = 'Unknown Vendor';
       let itemCount = 0;
+      let itemIds = [];
       
       // Get lines and extract vendor from first item
       try {
-        const lines = await heartlandRequest(`/purchasing/receipts/${r.id}/lines?per_page=10`);
+        const lines = await heartlandRequest(`/purchasing/receipts/${r.id}/lines?per_page=100`);
         itemCount = lines.total || 0;
+        
+        // Collect item IDs for status check
+        for (const line of lines.results || []) {
+          if (line.item_id) {
+            itemIds.push(line.item_id);
+          }
+        }
         
         // Get vendor from first item's primary_vendor_id
         if (lines.results && lines.results.length > 0) {
@@ -360,6 +368,39 @@ app.get('/api/receipts', async (req, res) => {
         console.error('Error fetching receipt lines:', e);
       }
       
+      // Calculate receipt status from item statuses in database
+      let receiptStatus = 'new';
+      if (itemIds.length > 0) {
+        try {
+          const statusResult = await pool.query(
+            `SELECT status, COUNT(*) as count 
+             FROM processed_items 
+             WHERE heartland_id = ANY($1::text[])
+             GROUP BY status`,
+            [itemIds.map(id => id.toString())]
+          );
+          
+          const statusCounts = {};
+          let totalTracked = 0;
+          for (const row of statusResult.rows) {
+            statusCounts[row.status] = parseInt(row.count);
+            totalTracked += parseInt(row.count);
+          }
+          
+          const completed = statusCounts['completed'] || 0;
+          const skipped = statusCounts['skipped'] || 0;
+          const done = completed + skipped;
+          
+          if (done >= itemCount && itemCount > 0) {
+            receiptStatus = 'completed';
+          } else if (done > 0) {
+            receiptStatus = 'in_progress';
+          }
+        } catch (e) {
+          console.error('Error checking receipt status:', e);
+        }
+      }
+      
       receipts.push({
         id: `REC-${r.id}`,
         heartlandId: r.id,
@@ -367,7 +408,7 @@ app.get('/api/receipts', async (req, res) => {
         vendor: vendorName,
         receiptNumber: r.public_id || `${r.id}`,
         itemCount: itemCount,
-        status: 'new', // Receipt-level status (could be computed from items later)
+        status: receiptStatus,
       });
     }
     
