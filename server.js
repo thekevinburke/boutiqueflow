@@ -160,14 +160,16 @@ async function getVendorName(vendorId) {
 // Get all receipts from Heartland
 app.get('/api/receipts', async (req, res) => {
   try {
-    // Fetch recent receipts (last 30 days, limit 50)
+    // Fetch recent receipts (last 30 days, limit 50), sorted by updated_at descending (newest first)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const dateFilter = thirtyDaysAgo.toISOString().split('T')[0];
     
-    const data = await heartlandRequest(`/purchasing/receipts?per_page=50&_filter[created_at][$gte]=${dateFilter}`);
+    const data = await heartlandRequest(`/purchasing/receipts?per_page=50&_filter[created_at][$gte]=${dateFilter}&sort[]=updated_at,desc`);
     
-    const receipts = await Promise.all(data.results.map(async (r) => {
+    // Process receipts sequentially to avoid race conditions
+    const receipts = [];
+    for (const r of data.results) {
       let vendorName = 'Unknown Vendor';
       let itemCount = 0;
       
@@ -194,16 +196,16 @@ app.get('/api/receipts', async (req, res) => {
         console.error('Error fetching receipt lines:', e);
       }
       
-      return {
+      receipts.push({
         id: `REC-${r.id}`,
         heartlandId: r.id,
-        date: r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        date: r.updated_at ? r.updated_at.split('T')[0] : (r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
         vendor: vendorName,
         poNumber: r.public_id || `REC-${r.id}`,
         itemCount: itemCount,
         status: r.status === 'complete' ? 'completed' : r.status === 'pending' ? 'new' : 'in_progress',
-      };
-    }));
+      });
+    }
     
     res.json(receipts);
   } catch (error) {

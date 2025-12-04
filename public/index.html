@@ -629,6 +629,24 @@
         </div>
       </div>
 
+      <div class="filters-row" style="display: flex; gap: 16px; margin-bottom: 16px;">
+        <div class="filter-group" style="display: flex; flex-direction: column;">
+          <label style="font-size: 0.75rem; color: #666; margin-bottom: 4px;">Filter by Status</label>
+          <select id="statusFilter" onchange="applyFilters()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; min-width: 150px;">
+            <option value="">All Statuses</option>
+            <option value="new">New</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <div class="filter-group" style="display: flex; flex-direction: column;">
+          <label style="font-size: 0.75rem; color: #666; margin-bottom: 4px;">Filter by Vendor</label>
+          <select id="vendorFilter" onchange="applyFilters()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; min-width: 200px;">
+            <option value="">All Vendors</option>
+          </select>
+        </div>
+      </div>
+
       <div class="receipt-list">
         <div class="receipt-list-header">
           <div>Date</div>
@@ -770,6 +788,7 @@
     let currentReceiptId = null;
     let uploadedFiles = [];
     let isQuickAdd = false;
+    let allReceipts = []; // Store all receipts for filtering
 
     // Elements
     const dashboardPage = document.getElementById('dashboardPage');
@@ -783,34 +802,58 @@
     async function loadDashboard() {
       try {
         const response = await fetch('/api/receipts');
-        const receipts = await response.json();
+        allReceipts = await response.json();
 
-        // Calculate stats
-        let newItems = 0, inProgress = 0, completed = 0;
-        receipts.forEach(r => {
-          if (r.status === 'new') newItems += r.itemCount;
-          else if (r.status === 'in_progress') inProgress += r.itemCount;
-          else if (r.status === 'completed') completed += r.itemCount;
-        });
+        // Populate vendor filter dropdown
+        const vendors = [...new Set(allReceipts.map(r => r.vendor))].filter(v => v && v !== 'Unknown Vendor').sort();
+        const vendorFilter = document.getElementById('vendorFilter');
+        vendorFilter.innerHTML = '<option value="">All Vendors</option>' + 
+          vendors.map(v => `<option value="${v}">${v}</option>`).join('');
 
-        document.getElementById('statNew').textContent = newItems;
-        document.getElementById('statProgress').textContent = inProgress;
-        document.getElementById('statDone').textContent = completed;
-
-        // Render receipt list
-        const listBody = document.getElementById('receiptListBody');
-        listBody.innerHTML = receipts.map(r => `
-          <div class="receipt-row" onclick="showReceipt('${r.id}')">
-            <div class="receipt-date">${formatDate(r.date)}</div>
-            <div class="receipt-vendor">${r.vendor}</div>
-            <div class="receipt-po">${r.poNumber}</div>
-            <div class="receipt-items">${r.itemCount} items</div>
-            <div><span class="status-badge ${r.status}">${formatStatus(r.status)}</span></div>
-          </div>
-        `).join('');
+        // Apply filters and render
+        applyFilters();
       } catch (error) {
         console.error('Error loading dashboard:', error);
       }
+    }
+
+    function applyFilters() {
+      const statusFilter = document.getElementById('statusFilter').value;
+      const vendorFilter = document.getElementById('vendorFilter').value;
+
+      let filtered = allReceipts;
+
+      if (statusFilter) {
+        filtered = filtered.filter(r => r.status === statusFilter);
+      }
+
+      if (vendorFilter) {
+        filtered = filtered.filter(r => r.vendor === vendorFilter);
+      }
+
+      // Calculate stats from filtered results
+      let newItems = 0, inProgress = 0, completed = 0;
+      filtered.forEach(r => {
+        if (r.status === 'new') newItems += r.itemCount;
+        else if (r.status === 'in_progress') inProgress += r.itemCount;
+        else if (r.status === 'completed') completed += r.itemCount;
+      });
+
+      document.getElementById('statNew').textContent = newItems;
+      document.getElementById('statProgress').textContent = inProgress;
+      document.getElementById('statDone').textContent = completed;
+
+      // Render receipt list
+      const listBody = document.getElementById('receiptListBody');
+      listBody.innerHTML = filtered.map(r => `
+        <div class="receipt-row" onclick="showReceipt('${r.id}')">
+          <div class="receipt-date">${formatDate(r.date)}</div>
+          <div class="receipt-vendor">${r.vendor}</div>
+          <div class="receipt-po">${r.poNumber}</div>
+          <div class="receipt-items">${r.itemCount} items</div>
+          <div><span class="status-badge ${r.status}">${formatStatus(r.status)}</span></div>
+        </div>
+      `).join('');
     }
 
     async function showReceipt(receiptId) {
