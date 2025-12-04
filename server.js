@@ -502,31 +502,44 @@ app.get('/api/grids/:id', async (req, res) => {
       vendorName = await getVendorName(grid.item_primary_vendor_id);
     }
     
-    // Get items in this grid to show color/size info
+    // Get items in this grid to show color/size info and get style_name/category
     const itemsData = await heartlandRequest(`/items?_filter[grid_id]=${gridId}&per_page=50`);
     
     const colors = new Set();
     const sizes = new Set();
+    let styleName = '';
+    let category = '';
     
     for (const item of itemsData.results || []) {
       const colorName = item.custom?.color_name || item.custom?.Color_Name || item.custom?.color || item.custom?.Color || '';
       const size = item.custom?.size || item.custom?.Size || '';
       if (colorName) colors.add(colorName);
       if (size) sizes.add(size);
+      
+      // Get style_name and category from first item that has them
+      if (!styleName) {
+        styleName = item.custom?.style_name || item.custom?.Style_Name || '';
+      }
+      if (!category) {
+        category = item.custom?.category || item.custom?.Category || item.custom?.department || item.custom?.Department || '';
+      }
     }
     
     // Get status from database
     const status = await getItemStatus('grid', gridId);
     
+    // Use item_description from grid, fall back to style_name from items, then 'Unknown Grid'
+    const gridName = grid.item_description || styleName || 'Unknown Grid';
+    
     res.json({
       id: `GRID-${gridId}`,
       type: 'grid',
       gridId: gridId,
-      name: grid.item_description || 'Unknown Grid',
+      name: gridName,
       colors: Array.from(colors).sort(),
       sizes: Array.from(sizes).sort(),
       variantCount: itemsData.total || 0,
-      category: grid.custom?.category || grid.custom?.Category || grid.custom?.department || '',
+      category: grid.custom?.category || grid.custom?.Category || category || '',
       vendor: vendorName,
       status: status,
       longDescription: grid.item_long_description || '',
