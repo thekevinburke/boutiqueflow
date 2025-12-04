@@ -160,12 +160,12 @@ async function getVendorName(vendorId) {
 // Get all receipts from Heartland
 app.get('/api/receipts', async (req, res) => {
   try {
-    // Fetch recent receipts (last 30 days, limit 50), sorted by updated_at descending (newest first)
+    // Fetch recent COMPLETE receipts (last 30 days, limit 50), sorted by updated_at descending (newest first)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const dateFilter = thirtyDaysAgo.toISOString().split('T')[0];
     
-    const data = await heartlandRequest(`/purchasing/receipts?per_page=50&_filter[created_at][$gte]=${dateFilter}&sort[]=updated_at,desc`);
+    const data = await heartlandRequest(`/purchasing/receipts?per_page=50&_filter[created_at][$gte]=${dateFilter}&_filter[status]=complete&sort[]=updated_at,desc`);
     
     // Process receipts sequentially to avoid race conditions
     const receipts = [];
@@ -201,9 +201,9 @@ app.get('/api/receipts', async (req, res) => {
         heartlandId: r.id,
         date: r.updated_at ? r.updated_at.split('T')[0] : (r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
         vendor: vendorName,
-        poNumber: r.public_id || `REC-${r.id}`,
+        receiptNumber: r.public_id || `${r.id}`,
         itemCount: itemCount,
-        status: r.status === 'complete' ? 'completed' : r.status === 'pending' ? 'new' : 'in_progress',
+        status: 'new', // All items start as "new" for our workflow (needs description)
       });
     }
     
@@ -262,9 +262,9 @@ app.get('/api/receipts/:id', async (req, res) => {
       heartlandId: receipt.id,
       date: receipt.created_at ? receipt.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
       vendor: vendorName,
-      poNumber: receipt.public_id || `REC-${receipt.id}`,
+      receiptNumber: receipt.public_id || `${receipt.id}`,
       itemCount: items.length,
-      status: receipt.status === 'complete' ? 'completed' : receipt.status === 'pending' ? 'new' : 'in_progress',
+      status: 'new',
       items: items,
     });
   } catch (error) {

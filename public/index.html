@@ -629,15 +629,20 @@
         </div>
       </div>
 
-      <div class="filters-row" style="display: flex; gap: 16px; margin-bottom: 16px;">
+      <div class="filters-row" style="display: flex; gap: 24px; margin-bottom: 16px; align-items: flex-end;">
         <div class="filter-group" style="display: flex; flex-direction: column;">
-          <label style="font-size: 0.75rem; color: #666; margin-bottom: 4px;">Filter by Status</label>
-          <select id="statusFilter" onchange="applyFilters()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; min-width: 150px;">
-            <option value="">All Statuses</option>
-            <option value="new">New</option>
-            <option value="in_progress">In Progress</option>
-            <option value="completed">Completed</option>
-          </select>
+          <label style="font-size: 0.75rem; color: #666; margin-bottom: 8px;">Filter by Status</label>
+          <div style="display: flex; gap: 16px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+              <input type="checkbox" id="filterNew" checked onchange="applyFilters()"> New
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+              <input type="checkbox" id="filterInProgress" checked onchange="applyFilters()"> In Progress
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+              <input type="checkbox" id="filterCompleted" onchange="applyFilters()"> Completed
+            </label>
+          </div>
         </div>
         <div class="filter-group" style="display: flex; flex-direction: column;">
           <label style="font-size: 0.75rem; color: #666; margin-bottom: 4px;">Filter by Vendor</label>
@@ -651,7 +656,7 @@
         <div class="receipt-list-header">
           <div>Date</div>
           <div>Vendor</div>
-          <div>PO Number</div>
+          <div>Receipt #</div>
           <div>Items</div>
           <div>Status</div>
         </div>
@@ -675,7 +680,7 @@
             <span class="receipt-meta-value" id="receiptDate">-</span>
           </div>
           <div class="receipt-meta-item">
-            <span class="receipt-meta-label">PO Number</span>
+            <span class="receipt-meta-label">Receipt #</span>
             <span class="receipt-meta-value" id="receiptPO">-</span>
           </div>
           <div class="receipt-meta-item">
@@ -818,14 +823,20 @@
     }
 
     function applyFilters() {
-      const statusFilter = document.getElementById('statusFilter').value;
+      const showNew = document.getElementById('filterNew').checked;
+      const showInProgress = document.getElementById('filterInProgress').checked;
+      const showCompleted = document.getElementById('filterCompleted').checked;
       const vendorFilter = document.getElementById('vendorFilter').value;
 
       let filtered = allReceipts;
 
-      if (statusFilter) {
-        filtered = filtered.filter(r => r.status === statusFilter);
-      }
+      // Filter by status checkboxes
+      filtered = filtered.filter(r => {
+        if (r.status === 'new' && showNew) return true;
+        if (r.status === 'in_progress' && showInProgress) return true;
+        if (r.status === 'completed' && showCompleted) return true;
+        return false;
+      });
 
       if (vendorFilter) {
         filtered = filtered.filter(r => r.vendor === vendorFilter);
@@ -849,7 +860,7 @@
         <div class="receipt-row" onclick="showReceipt('${r.id}')">
           <div class="receipt-date">${formatDate(r.date)}</div>
           <div class="receipt-vendor">${r.vendor}</div>
-          <div class="receipt-po">${r.poNumber}</div>
+          <div class="receipt-po">${r.receiptNumber}</div>
           <div class="receipt-items">${r.itemCount} items</div>
           <div><span class="status-badge ${r.status}">${formatStatus(r.status)}</span></div>
         </div>
@@ -863,7 +874,7 @@
 
       document.getElementById('receiptVendor').textContent = receipt.vendor;
       document.getElementById('receiptDate').textContent = formatDate(receipt.date);
-      document.getElementById('receiptPO').textContent = receipt.poNumber;
+      document.getElementById('receiptPO').textContent = receipt.receiptNumber;
       document.getElementById('receiptItemCount').textContent = receipt.itemCount;
 
       const listBody = document.getElementById('itemListBody');
