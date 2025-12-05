@@ -915,8 +915,8 @@
         });
         
         if (response.ok) {
-          // Refresh the list
-          await loadDashboard();
+          // Small delay to ensure DB commits, then refresh the list
+          setTimeout(() => loadDashboard(), 300);
         } else {
           const error = await response.json();
           alert('Error skipping receipt: ' + (error.message || 'Unknown error'));
