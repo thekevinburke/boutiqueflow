@@ -1326,8 +1326,35 @@ async function runNightlySync() {
     const sales = await fetchAllPages(`/reporting/sales?_filter[date][$gte]=${oneYearAgo}`);
     console.log(`Found ${sales.length} sales records`);
     
-    // ========== STEP 2: Process Sales Records ==========
-    console.log('Step 2: Processing sales records...');
+    // ========== STEP 2: Fetch Ticket Updated Times ==========
+    // The reporting API datetime is ticket creation time, but we need completion time (updated_at)
+    console.log('Step 2: Fetching ticket completion times...');
+    const uniqueTicketIds = [...new Set(sales.map(s => s.transaction_id).filter(Boolean))];
+    console.log(`Fetching updated_at for ${uniqueTicketIds.length} unique tickets...`);
+    
+    const ticketTimestamps = {};
+    let ticketsFetched = 0;
+    for (const ticketId of uniqueTicketIds) {
+      try {
+        const ticket = await heartlandRequest(`/sales/tickets/${ticketId}`);
+        // Use updated_at (completion time) for accurate hour tracking
+        ticketTimestamps[ticketId] = {
+          updatedAt: ticket.updated_at || ticket.created_at,
+          locationName: ticket.location_name || 'Unknown'
+        };
+        ticketsFetched++;
+        if (ticketsFetched % 200 === 0) {
+          console.log(`Fetched ${ticketsFetched}/${uniqueTicketIds.length} ticket times...`);
+        }
+      } catch (e) {
+        // Ticket might be deleted, skip
+        ticketTimestamps[ticketId] = null;
+      }
+    }
+    console.log(`Fetched timestamps for ${ticketsFetched} tickets`);
+    
+    // ========== STEP 3: Process Sales Records ==========
+    console.log('Step 3: Processing sales records...');
     let transactionCount = 0;
     
     // Get item details for category/brand info (batch by unique item IDs)
@@ -1375,7 +1402,13 @@ async function runNightlySync() {
       if (!sale.item_id) continue;
       
       const itemDetails = itemDetailsCache[sale.item_id] || {};
-      const transactionDate = new Date(sale.datetime);
+      const ticketInfo = ticketTimestamps[sale.transaction_id];
+      
+      // Use ticket updated_at for accurate transaction time, fall back to sale.datetime
+      const transactionDate = ticketInfo?.updatedAt 
+        ? new Date(ticketInfo.updatedAt) 
+        : new Date(sale.datetime);
+      const locationName = ticketInfo?.locationName || sale.location_name || 'Unknown';
       
       try {
         // Upsert transaction using reporting sales data
@@ -1399,7 +1432,7 @@ async function runNightlySync() {
           sale.item_id?.toString(),
           transactionDate,
           transactionDate.getDay(), // 0=Sunday
-          sale.hour || transactionDate.getHours(),
+          transactionDate.getHours(), // Use actual completion hour from updated_at
           sale.net_qty_sold || 1,
           sale.unit_price || 0,
           sale.net_sales || 0,
@@ -1409,7 +1442,7 @@ async function runNightlySync() {
           itemDetails.name || 'Unknown Item',
           itemDetails.size || '',
           itemDetails.color || '',
-          sale.location_name || 'Unknown'
+          locationName
         ]);
         
         transactionCount++;
@@ -1427,8 +1460,8 @@ async function runNightlySync() {
     console.log(`Inserted/updated ${transactionCount} transactions`);
     totalRecords += transactionCount;
     
-    // ========== STEP 3: Build Customer Profiles ==========
-    console.log('Step 3: Building customer profiles...');
+    // ========== STEP 4: Build Customer Profiles ==========
+    console.log('Step 4: Building customer profiles...');
     
     // Get all customers from Heartland
     const heartlandCustomers = await fetchAllPages('/customers');
@@ -1527,7 +1560,7 @@ async function runNightlySync() {
     console.log(`Updated ${customerCount} customer profiles`);
     totalRecords += customerCount;
     
-    // ========== STEP 4: Aggregate SalesIQ Data ==========
+    // ========== STEP 5: Aggregate SalesIQ Data ==========
     console.log('Step 4: Aggregating SalesIQ data...');
     
     // Sales by day of week
@@ -1626,7 +1659,7 @@ async function runNightlySync() {
     
     console.log('SalesIQ data cached');
     
-    // ========== STEP 5: Sync Purchasing Receipts (for InventoryIQ) ==========
+    // ========== STEP 6: Sync Purchasing Receipts (for InventoryIQ) ==========
     console.log('Step 5: Syncing purchasing receipts...');
     
     try {
@@ -1703,7 +1736,7 @@ async function runNightlySync() {
       console.error('Receipt sync error (non-fatal):', receiptError.message);
     }
     
-    // ========== STEP 6: Calculate InventoryIQ Dead Stock (Days Since Received) ==========
+    // ========== STEP 7: Calculate InventoryIQ Dead Stock (Days Since Received) ==========
     console.log('Step 6: Calculating InventoryIQ data (days since received)...');
     
     try {
@@ -2027,7 +2060,7 @@ async function runNightlySync() {
       console.error('InventoryIQ sync error (non-fatal):', invError.message);
     }
     
-    // ========== STEP 7: Complete ==========
+    // ========== STEP 8: Complete ==========
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.log(`========== NIGHTLY SYNC COMPLETE in ${duration}s ==========`);
     console.log(`Total records processed: ${totalRecords}`);
