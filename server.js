@@ -42,6 +42,24 @@ async function initDatabase() {
       )
     `);
     
+    // Receipt cache table (for fast ReceiptAI loading)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS receipt_cache (
+        id SERIAL PRIMARY KEY,
+        heartland_id VARCHAR(50) NOT NULL UNIQUE,
+        receipt_date DATE NOT NULL,
+        vendor VARCHAR(255),
+        receipt_number VARCHAR(100),
+        item_count INTEGER DEFAULT 0,
+        grid_count INTEGER DEFAULT 0,
+        cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_receipt_cache_date ON receipt_cache(receipt_date DESC);
+    `);
+    
     // Sales transactions table (foundation for SalesIQ, First Dibs, Retargeting)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS sales_transactions (
@@ -453,90 +471,52 @@ async function getVendorName(vendorId) {
 // Get all receipts from Heartland
 app.get('/api/receipts', async (req, res) => {
   try {
-    // Fetch recent COMPLETE receipts (last 30 days, limit 50), sorted by updated_at descending (newest first)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateFilter = thirtyDaysAgo.toISOString().split('T')[0];
-    
-    const data = await heartlandRequest(`/purchasing/receipts?per_page=50&_filter[created_at][$gte]=${dateFilter}&_filter[status]=complete&sort[]=updated_at,desc`);
+    // Get cached receipts from database (fast!)
+    const cachedResult = await pool.query(`
+      SELECT heartland_id, receipt_date, vendor, receipt_number, item_count, grid_count
+      FROM receipt_cache
+      WHERE receipt_date >= NOW() - INTERVAL '30 days'
+      ORDER BY receipt_date DESC
+    `);
     
     // Get all receipt IDs to batch query statuses
-    const receiptIds = data.results.map(r => r.id.toString());
+    const receiptIds = cachedResult.rows.map(r => r.heartland_id);
     
     // Batch query all statuses from database
     let statusMap = {};
-    try {
-      const statusResult = await pool.query(
-        `SELECT receipt_id, status, COUNT(*) as count 
-         FROM processed_items 
-         WHERE receipt_id = ANY($1::text[])
-         GROUP BY receipt_id, status`,
-        [receiptIds]
-      );
-      
-      for (const row of statusResult.rows) {
-        if (!statusMap[row.receipt_id]) {
-          statusMap[row.receipt_id] = { completed: 0, skipped: 0 };
+    if (receiptIds.length > 0) {
+      try {
+        const statusResult = await pool.query(
+          `SELECT receipt_id, status, COUNT(*) as count 
+           FROM processed_items 
+           WHERE receipt_id = ANY($1::text[])
+           GROUP BY receipt_id, status`,
+          [receiptIds]
+        );
+        
+        for (const row of statusResult.rows) {
+          if (!statusMap[row.receipt_id]) {
+            statusMap[row.receipt_id] = { completed: 0, skipped: 0 };
+          }
+          if (row.status === 'completed') statusMap[row.receipt_id].completed = parseInt(row.count);
+          if (row.status === 'skipped') statusMap[row.receipt_id].skipped = parseInt(row.count);
         }
-        if (row.status === 'completed') statusMap[row.receipt_id].completed = parseInt(row.count);
-        if (row.status === 'skipped') statusMap[row.receipt_id].skipped = parseInt(row.count);
+      } catch (e) {
+        console.error('Error batch querying statuses:', e);
       }
-    } catch (e) {
-      console.error('Error batch querying statuses:', e);
     }
     
-    // Process receipts
-    const receipts = [];
-    for (const r of data.results) {
-      let vendorName = 'Unknown Vendor';
-      let itemCount = 0;
-      let gridCount = 0;
+    // Build receipt list from cache
+    const receipts = cachedResult.rows.map(r => {
+      const gridCount = r.grid_count || 1;
       
-      // Get lines and extract vendor from first item
-      try {
-        const lines = await heartlandRequest(`/purchasing/receipts/${r.id}/lines?per_page=100`);
-        itemCount = lines.total || 0;
-        
-        // Count unique grids
-        const gridIds = new Set();
-        for (const line of lines.results || []) {
-          if (line.grid_id) {
-            gridIds.add(line.grid_id);
-          }
-        }
-        
-        // Get vendor from first item's primary_vendor_id (and grid_id if not found in lines)
-        if (lines.results && lines.results.length > 0) {
-          const firstLine = lines.results[0];
-          if (firstLine.item_id) {
-            try {
-              const item = await heartlandRequest(`/items/${firstLine.item_id}`);
-              if (item.primary_vendor_id) {
-                vendorName = await getVendorName(item.primary_vendor_id);
-              }
-              // If no grid_ids found in lines, get from item
-              if (gridIds.size === 0 && item.grid_id) {
-                gridIds.add(item.grid_id);
-              }
-            } catch (e) {
-              console.error('Error fetching item for vendor:', e);
-            }
-          }
-        }
-        
-        gridCount = gridIds.size || 1; // Default to 1 if still no grids found
-      } catch (e) {
-        console.error('Error fetching receipt lines:', e);
-      }
-      
-      // Calculate receipt status from pre-fetched data
+      // Calculate receipt status
       let receiptStatus = 'new';
-      const stats = statusMap[r.id.toString()];
+      const stats = statusMap[r.heartland_id];
       if (stats) {
         const done = stats.completed + stats.skipped;
         if (done > 0) {
           if (done >= gridCount) {
-            // All items processed - check if all were skipped
             if (stats.skipped >= gridCount && stats.completed === 0) {
               receiptStatus = 'skipped';
             } else {
@@ -548,21 +528,130 @@ app.get('/api/receipts', async (req, res) => {
         }
       }
       
-      receipts.push({
-        id: `REC-${r.id}`,
-        heartlandId: r.id,
-        date: r.updated_at ? r.updated_at.split('T')[0] : (r.created_at ? r.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
-        vendor: vendorName,
-        receiptNumber: r.public_id || `${r.id}`,
-        itemCount: itemCount,
+      return {
+        id: `REC-${r.heartland_id}`,
+        heartlandId: parseInt(r.heartland_id),
+        date: r.receipt_date.toISOString().split('T')[0],
+        vendor: r.vendor || 'Unknown Vendor',
+        receiptNumber: r.receipt_number || r.heartland_id,
+        itemCount: r.item_count || 0,
         gridCount: gridCount,
         status: receiptStatus,
-      });
+      };
+    });
+    
+    // Also check for any NEW receipts from today that might not be cached yet
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const todayData = await heartlandRequest(`/purchasing/receipts?per_page=20&_filter[created_at][$gte]=${today}&_filter[status]=complete&sort[]=updated_at,desc`);
+      
+      for (const r of (todayData.results || [])) {
+        // Skip if already in cache
+        if (receipts.some(cached => cached.heartlandId === r.id)) continue;
+        
+        // Get basic info for new receipt
+        let vendorName = 'Unknown Vendor';
+        let itemCount = 0;
+        let gridCount = 1;
+        
+        try {
+          const lines = await heartlandRequest(`/purchasing/receipts/${r.id}/lines?per_page=100`);
+          itemCount = lines.total || 0;
+          
+          const gridIds = new Set();
+          for (const line of lines.results || []) {
+            if (line.grid_id) gridIds.add(line.grid_id);
+          }
+          
+          if (lines.results && lines.results.length > 0 && lines.results[0].item_id) {
+            const item = await heartlandRequest(`/items/${lines.results[0].item_id}`);
+            if (item.primary_vendor_id) {
+              vendorName = await getVendorName(item.primary_vendor_id);
+            }
+            if (gridIds.size === 0 && item.grid_id) gridIds.add(item.grid_id);
+          }
+          
+          gridCount = gridIds.size || 1;
+        } catch (e) {
+          console.error('Error fetching new receipt details:', e);
+        }
+        
+        receipts.unshift({
+          id: `REC-${r.id}`,
+          heartlandId: r.id,
+          date: r.updated_at ? r.updated_at.split('T')[0] : today,
+          vendor: vendorName,
+          receiptNumber: r.public_id || `${r.id}`,
+          itemCount: itemCount,
+          gridCount: gridCount,
+          status: 'new',
+        });
+      }
+    } catch (e) {
+      console.error('Error checking for new receipts:', e);
     }
     
     res.json(receipts);
   } catch (error) {
-    console.error('Error fetching receipts from Heartland:', error);
+    console.error('Error fetching receipts:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Refresh receipt cache (faster than full sync)
+app.post('/api/receipts/refresh-cache', async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+    const recentReceipts = await fetchAllPages(`/purchasing/receipts?_filter[created_at][$gte]=${thirtyDaysAgo}&_filter[status]=complete`);
+    
+    let cachedCount = 0;
+    for (const receipt of recentReceipts) {
+      try {
+        const receiptDate = receipt.updated_at || receipt.created_at;
+        const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=100`);
+        const itemCount = lines.total || 0;
+        
+        const gridIds = new Set();
+        let vendorName = 'Unknown Vendor';
+        
+        for (const line of (lines.results || [])) {
+          if (line.grid_id) gridIds.add(line.grid_id);
+        }
+        
+        if (lines.results && lines.results.length > 0 && lines.results[0].item_id) {
+          try {
+            const item = await heartlandRequest(`/items/${lines.results[0].item_id}`);
+            if (item.primary_vendor_id) {
+              vendorName = await getVendorName(item.primary_vendor_id);
+            }
+            if (gridIds.size === 0 && item.grid_id) gridIds.add(item.grid_id);
+          } catch (e) {}
+        }
+        
+        const gridCount = gridIds.size || 1;
+        
+        await pool.query(`
+          INSERT INTO receipt_cache (heartland_id, receipt_date, vendor, receipt_number, item_count, grid_count, cached_at)
+          VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+          ON CONFLICT (heartland_id)
+          DO UPDATE SET 
+            receipt_date = EXCLUDED.receipt_date,
+            vendor = EXCLUDED.vendor,
+            receipt_number = EXCLUDED.receipt_number,
+            item_count = EXCLUDED.item_count,
+            grid_count = EXCLUDED.grid_count,
+            cached_at = CURRENT_TIMESTAMP
+        `, [receipt.id.toString(), receiptDate, vendorName, receipt.public_id || receipt.id.toString(), itemCount, gridCount]);
+        
+        cachedCount++;
+      } catch (e) {
+        console.error(`Error caching receipt ${receipt.id}:`, e.message);
+      }
+    }
+    
+    res.json({ success: true, message: `Cached ${cachedCount} receipts` });
+  } catch (error) {
+    console.error('Error refreshing receipt cache:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1813,6 +1902,71 @@ async function runNightlySync() {
       }
       console.log(`Synced ${receiptItemCount} item receipts`);
       totalRecords += receiptItemCount;
+      
+      // ========== STEP 6b: Cache receipt list for fast ReceiptAI loading ==========
+      console.log('Caching receipt list for ReceiptAI...');
+      
+      // Get receipts from last 30 days for the cache
+      const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+      const recentReceipts = await fetchAllPages(`/purchasing/receipts?_filter[created_at][$gte]=${thirtyDaysAgo}&_filter[status]=complete`);
+      
+      let cachedCount = 0;
+      for (const receipt of recentReceipts) {
+        try {
+          const receiptDate = receipt.updated_at || receipt.created_at;
+          
+          // Get line items to count and get vendor
+          const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=100`);
+          const itemCount = lines.total || 0;
+          
+          // Count unique grids
+          const gridIds = new Set();
+          let vendorName = 'Unknown Vendor';
+          
+          for (const line of (lines.results || [])) {
+            if (line.grid_id) gridIds.add(line.grid_id);
+          }
+          
+          // Get vendor from first item
+          if (lines.results && lines.results.length > 0 && lines.results[0].item_id) {
+            try {
+              const item = await heartlandRequest(`/items/${lines.results[0].item_id}`);
+              if (item.primary_vendor_id) {
+                vendorName = await getVendorName(item.primary_vendor_id);
+              }
+              if (gridIds.size === 0 && item.grid_id) gridIds.add(item.grid_id);
+            } catch (e) {}
+          }
+          
+          const gridCount = gridIds.size || 1;
+          
+          // Upsert into receipt_cache
+          await pool.query(`
+            INSERT INTO receipt_cache (heartland_id, receipt_date, vendor, receipt_number, item_count, grid_count, cached_at)
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+            ON CONFLICT (heartland_id)
+            DO UPDATE SET 
+              receipt_date = EXCLUDED.receipt_date,
+              vendor = EXCLUDED.vendor,
+              receipt_number = EXCLUDED.receipt_number,
+              item_count = EXCLUDED.item_count,
+              grid_count = EXCLUDED.grid_count,
+              cached_at = CURRENT_TIMESTAMP
+          `, [
+            receipt.id.toString(),
+            receiptDate,
+            vendorName,
+            receipt.public_id || receipt.id.toString(),
+            itemCount,
+            gridCount
+          ]);
+          
+          cachedCount++;
+        } catch (e) {
+          console.error(`Error caching receipt ${receipt.id}:`, e.message);
+        }
+      }
+      console.log(`Cached ${cachedCount} receipts for ReceiptAI`);
       
     } catch (receiptError) {
       console.error('Receipt sync error (non-fatal):', receiptError.message);
