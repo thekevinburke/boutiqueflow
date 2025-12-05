@@ -754,83 +754,91 @@ app.post('/api/grids/:id/skip', async (req, res) => {
 
 // ==================== INVENTORY IQ ENDPOINTS ====================
 
-// Get inventory summary
-app.get('/api/inventory/summary', async (req, res) => {
+// Get dead/slow stock - items that haven't sold recently
+app.get('/api/inventory/dead-stock', async (req, res) => {
   try {
-    // Get inventory values grouped by item
+    // Get all items with inventory on hand
     const inventoryData = await heartlandRequest('/inventory/values?group[]=item_id&per_page=500');
     
-    let totalItems = 0;
-    let totalValue = 0;
-    let totalUnits = 0;
-    let outOfStock = 0;
-    let lowStock = 0;
-    let healthyStock = 0;
-    let overStock = 0;
+    // Get recent receipt data to find receive dates (last 180 days of receipts)
+    const sixMonthsAgo = new Date(Date.now() - 180*24*60*60*1000).toISOString().split('T')[0];
+    const receiptsData = await heartlandRequest(`/purchasing/receipts?per_page=200&_filter[created_at][$gte]=${sixMonthsAgo}&_filter[status]=complete`);
     
-    for (const item of inventoryData.results || []) {
-      const qty = item.qty_on_hand || 0;
-      const value = (item.qty_on_hand || 0) * (item.unit_cost || 0);
-      
-      totalItems++;
-      totalValue += value;
-      totalUnits += qty;
-      
-      if (qty === 0) outOfStock++;
-      else if (qty <= 2) lowStock++;
-      else if (qty <= 10) healthyStock++;
-      else overStock++;
+    // Build a map of item_id -> receive date from receipt lines
+    const itemReceiveDates = {};
+    for (const receipt of receiptsData.results || []) {
+      try {
+        const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=100`);
+        const receiveDate = receipt.completed_at || receipt.created_at;
+        for (const line of lines.results || []) {
+          if (line.item_id) {
+            // Keep the earliest receive date for each item
+            if (!itemReceiveDates[line.item_id] || receiveDate < itemReceiveDates[line.item_id]) {
+              itemReceiveDates[line.item_id] = receiveDate;
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`Error fetching receipt ${receipt.id} lines:`, e);
+      }
     }
     
-    res.json({
-      totalItems,
-      totalValue: Math.round(totalValue * 100) / 100,
-      totalUnits,
-      stockLevels: {
-        outOfStock,
-        lowStock,
-        healthyStock,
-        overStock
+    // Get recent sales to find last sale dates
+    const salesData = await heartlandRequest('/reporting/sales?per_page=500');
+    
+    // Build a map of item_id -> last sale date
+    const itemLastSaleDates = {};
+    for (const sale of salesData.results || []) {
+      if (sale.item_id && sale.net_qty_sold > 0) {
+        const saleDate = sale.datetime;
+        if (!itemLastSaleDates[sale.item_id] || saleDate > itemLastSaleDates[sale.item_id]) {
+          itemLastSaleDates[sale.item_id] = saleDate;
+        }
       }
-    });
-  } catch (error) {
-    console.error('Error fetching inventory summary:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get detailed inventory with item info
-app.get('/api/inventory/items', async (req, res) => {
-  try {
-    const { filter, category, vendor, limit = 100 } = req.query;
+    }
     
-    // Get inventory values grouped by item
-    const inventoryData = await heartlandRequest(`/inventory/values?group[]=item_id&per_page=${limit}`);
+    // Process inventory items
+    const deadStockItems = [];
+    const now = new Date();
     
-    // Get item details for each inventory record
-    const itemsWithDetails = [];
+    let total60Days = 0, total90Days = 0, total120Days = 0;
+    let value60Days = 0, value90Days = 0, value120Days = 0;
     
     for (const inv of inventoryData.results || []) {
       if (!inv.item_id) continue;
+      const qty = inv.qty_on_hand || 0;
+      if (qty <= 0) continue; // Skip out of stock
       
       try {
         const item = await heartlandRequest(`/items/${inv.item_id}`);
         
-        const qty = inv.qty_on_hand || 0;
+        // Get receive date
+        const receiveDate = itemReceiveDates[inv.item_id];
+        if (!receiveDate) continue; // Skip if we don't know when it was received
+        
+        // Get last sale date
+        const lastSaleDate = itemLastSaleDates[inv.item_id];
+        
+        // Calculate days since received
+        const receivedAt = new Date(receiveDate);
+        const daysSinceReceived = Math.floor((now - receivedAt) / (1000 * 60 * 60 * 24));
+        
+        // Calculate days since last sale (if any)
+        let daysSinceLastSale = null;
+        if (lastSaleDate) {
+          const lastSale = new Date(lastSaleDate);
+          daysSinceLastSale = Math.floor((now - lastSale) / (1000 * 60 * 60 * 24));
+        }
+        
+        // Use the more relevant metric: days since received if never sold, or days since last sale
+        const daysStagnant = daysSinceLastSale !== null ? daysSinceLastSale : daysSinceReceived;
+        
+        // Only include items stagnant for 60+ days
+        if (daysStagnant < 60) continue;
+        
         const cost = item.cost || inv.unit_cost || 0;
         const price = item.price || 0;
         const value = qty * cost;
-        
-        // Determine stock status
-        let stockStatus = 'healthy';
-        if (qty === 0) stockStatus = 'out';
-        else if (qty <= 2) stockStatus = 'low';
-        else if (qty > 10) stockStatus = 'over';
-        
-        // Apply filter if specified
-        if (filter === 'out' && stockStatus !== 'out') continue;
-        if (filter === 'low' && stockStatus !== 'low') continue;
-        if (filter === 'over' && stockStatus !== 'over') continue;
         
         // Get vendor name
         let vendorName = 'Unknown';
@@ -838,119 +846,66 @@ app.get('/api/inventory/items', async (req, res) => {
           vendorName = await getVendorName(item.primary_vendor_id);
         }
         
-        // Filter by category if specified
-        const itemCategory = item.custom?.category || item.custom?.Category || item.custom?.department || '';
-        if (category && category !== 'all' && itemCategory.toLowerCase() !== category.toLowerCase()) continue;
+        // Suggest markdown based on days stagnant
+        let suggestedMarkdown = '20% off';
+        if (daysStagnant >= 120) suggestedMarkdown = '40% off';
+        else if (daysStagnant >= 90) suggestedMarkdown = '30% off';
         
-        // Filter by vendor if specified
-        if (vendor && vendor !== 'all' && vendorName.toLowerCase() !== vendor.toLowerCase()) continue;
-        
-        itemsWithDetails.push({
-          id: inv.item_id,
-          name: item.description || 'Unknown Item',
-          color: item.custom?.color_name || item.custom?.Color_Name || '',
-          size: item.custom?.size || item.custom?.Size || '',
-          category: itemCategory,
-          vendor: vendorName,
-          qty: qty,
-          cost: cost,
-          price: price,
-          value: Math.round(value * 100) / 100,
-          stockStatus: stockStatus,
-          gridId: item.grid_id || null,
-        });
-      } catch (e) {
-        console.error(`Error fetching item ${inv.item_id}:`, e);
-      }
-    }
-    
-    res.json({
-      total: itemsWithDetails.length,
-      items: itemsWithDetails
-    });
-  } catch (error) {
-    console.error('Error fetching inventory items:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get low stock items
-app.get('/api/inventory/low-stock', async (req, res) => {
-  try {
-    const { threshold = 2, limit = 50 } = req.query;
-    
-    // Get inventory values grouped by item
-    const inventoryData = await heartlandRequest(`/inventory/values?group[]=item_id&per_page=500`);
-    
-    const lowStockItems = [];
-    
-    for (const inv of inventoryData.results || []) {
-      if (!inv.item_id) continue;
-      
-      const qty = inv.qty_on_hand || 0;
-      if (qty > threshold || qty === 0) continue; // Skip out of stock and healthy stock
-      
-      try {
-        const item = await heartlandRequest(`/items/${inv.item_id}`);
-        
-        let vendorName = 'Unknown';
-        if (item.primary_vendor_id) {
-          vendorName = await getVendorName(item.primary_vendor_id);
+        // Categorize by bucket
+        if (daysStagnant >= 120) {
+          total120Days++;
+          value120Days += value;
+        } else if (daysStagnant >= 90) {
+          total90Days++;
+          value90Days += value;
+        } else {
+          total60Days++;
+          value60Days += value;
         }
         
-        lowStockItems.push({
+        deadStockItems.push({
           id: inv.item_id,
-          name: item.description || 'Unknown Item',
+          name: item.custom?.style_name || item.description || 'Unknown Item',
+          fullDescription: item.description,
           color: item.custom?.color_name || item.custom?.Color_Name || '',
           size: item.custom?.size || item.custom?.Size || '',
           category: item.custom?.category || item.custom?.Category || '',
           vendor: vendorName,
           qty: qty,
-          price: item.price || 0,
+          cost: cost,
+          price: price,
+          value: Math.round(value * 100) / 100,
+          daysStagnant: daysStagnant,
+          daysSinceReceived: daysSinceReceived,
+          daysSinceLastSale: daysSinceLastSale,
+          receivedDate: receiveDate.split('T')[0],
+          lastSaleDate: lastSaleDate ? lastSaleDate.split('T')[0] : null,
+          suggestedMarkdown: suggestedMarkdown,
           gridId: item.grid_id || null,
         });
-        
-        if (lowStockItems.length >= limit) break;
       } catch (e) {
-        console.error(`Error fetching item ${inv.item_id}:`, e);
+        console.error(`Error processing item ${inv.item_id}:`, e);
       }
     }
     
-    res.json({
-      total: lowStockItems.length,
-      items: lowStockItems
-    });
-  } catch (error) {
-    console.error('Error fetching low stock items:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get categories for filtering
-app.get('/api/inventory/categories', async (req, res) => {
-  try {
-    // Get a sample of items to extract categories
-    const itemsData = await heartlandRequest('/items?per_page=200&_filter[active]=true');
-    
-    const categories = new Set();
-    const vendors = new Set();
-    
-    for (const item of itemsData.results || []) {
-      const category = item.custom?.category || item.custom?.Category || item.custom?.department || '';
-      if (category) categories.add(category);
-      
-      if (item.primary_vendor_id) {
-        const vendorName = await getVendorName(item.primary_vendor_id);
-        if (vendorName !== 'Unknown Vendor') vendors.add(vendorName);
-      }
-    }
+    // Sort by days stagnant (worst first)
+    deadStockItems.sort((a, b) => b.daysStagnant - a.daysStagnant);
     
     res.json({
-      categories: Array.from(categories).sort(),
-      vendors: Array.from(vendors).sort()
+      summary: {
+        items60Days: total60Days,
+        items90Days: total90Days,
+        items120Days: total120Days,
+        value60Days: Math.round(value60Days * 100) / 100,
+        value90Days: Math.round(value90Days * 100) / 100,
+        value120Days: Math.round(value120Days * 100) / 100,
+        totalItems: total60Days + total90Days + total120Days,
+        totalValue: Math.round((value60Days + value90Days + value120Days) * 100) / 100,
+      },
+      items: deadStockItems
     });
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.error('Error fetching dead stock:', error);
     res.status(500).json({ error: error.message });
   }
 });

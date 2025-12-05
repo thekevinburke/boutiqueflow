@@ -121,7 +121,7 @@
     /* Stats Row */
     .stats-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       margin-bottom: 24px;
     }
@@ -131,22 +131,30 @@
       border-radius: 12px;
       padding: 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
     }
 
-    .stat-card.danger {
-      border-left: 4px solid #dc2626;
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card.active {
+      border-color: #e91e8a;
     }
 
     .stat-card.warning {
       border-left: 4px solid #f59e0b;
     }
 
-    .stat-card.success {
-      border-left: 4px solid #10b981;
+    .stat-card.danger {
+      border-left: 4px solid #dc2626;
     }
 
-    .stat-card.info {
-      border-left: 4px solid #0277bd;
+    .stat-card.critical {
+      border-left: 4px solid #7c2d12;
     }
 
     .stat-number {
@@ -159,63 +167,13 @@
     .stat-label {
       font-size: 0.85rem;
       color: #666;
+      margin-bottom: 8px;
     }
 
-    /* Tab Navigation */
-    .tab-nav {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 24px;
-      border-bottom: 2px solid #e0e0e0;
-      padding-bottom: 0;
-    }
-
-    .tab-btn {
-      padding: 12px 24px;
-      border: none;
-      background: none;
-      cursor: pointer;
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: #666;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-      transition: all 0.2s ease;
-    }
-
-    .tab-btn:hover {
-      color: #222;
-    }
-
-    .tab-btn.active {
-      color: #e91e8a;
-      border-bottom-color: #e91e8a;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    /* Filters Row */
-    .filters-row {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-
-    .filter-select {
-      padding: 8px 16px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
+    .stat-value {
       font-size: 0.9rem;
-      background: white;
-      cursor: pointer;
-      min-width: 160px;
+      font-weight: 600;
+      color: #888;
     }
 
     /* Data Table */
@@ -228,6 +186,7 @@
 
     .table-header {
       display: grid;
+      grid-template-columns: 2fr 1fr 1fr 80px 100px 100px 120px;
       padding: 16px 20px;
       background: #f8f9fa;
       font-weight: 600;
@@ -238,16 +197,9 @@
       border-bottom: 1px solid #e0e0e0;
     }
 
-    .inventory-header {
-      grid-template-columns: 2fr 1fr 1fr 80px 100px 100px 80px;
-    }
-
-    .size-gap-header {
-      grid-template-columns: 2fr 1fr 60px 60px 60px 60px 60px 60px 100px;
-    }
-
     .table-row {
       display: grid;
+      grid-template-columns: 2fr 1fr 1fr 80px 100px 100px 120px;
       padding: 16px 20px;
       border-bottom: 1px solid #f0f0f0;
       align-items: center;
@@ -260,14 +212,6 @@
 
     .table-row:last-child {
       border-bottom: none;
-    }
-
-    .inventory-row {
-      grid-template-columns: 2fr 1fr 1fr 80px 100px 100px 80px;
-    }
-
-    .size-gap-row {
-      grid-template-columns: 2fr 1fr 60px 60px 60px 60px 60px 60px 100px;
     }
 
     .item-name {
@@ -285,8 +229,8 @@
       color: #222;
     }
 
-    /* Stock Status Badges */
-    .stock-badge {
+    /* Days Badge */
+    .days-badge {
       display: inline-block;
       padding: 4px 12px;
       border-radius: 20px;
@@ -294,98 +238,39 @@
       font-weight: 600;
     }
 
-    .stock-badge.out {
-      background: #fee2e2;
-      color: #dc2626;
-    }
-
-    .stock-badge.low {
+    .days-badge.warning {
       background: #fef3c7;
       color: #b45309;
     }
 
-    .stock-badge.healthy {
-      background: #d1fae5;
-      color: #047857;
-    }
-
-    .stock-badge.over {
-      background: #e0f2fe;
-      color: #0277bd;
-    }
-
-    /* Size Cells */
-    .size-cell {
-      text-align: center;
-      padding: 6px;
-      border-radius: 6px;
-      font-weight: 500;
-      font-size: 0.9rem;
-    }
-
-    .size-cell.stockout {
+    .days-badge.danger {
       background: #fee2e2;
       color: #dc2626;
     }
 
-    .size-cell.low {
-      background: #fef3c7;
-      color: #b45309;
+    .days-badge.critical {
+      background: #7c2d12;
+      color: white;
     }
 
-    .size-cell.good {
-      background: #d1fae5;
-      color: #047857;
+    /* Suggested Action */
+    .suggested-action {
+      color: #e91e8a;
+      font-weight: 600;
+      font-size: 0.85rem;
     }
-
-    .size-cell.overstock {
-      background: #e0f2fe;
-      color: #0277bd;
-    }
-
-    .size-cell.na {
-      background: #f3f4f6;
-      color: #9ca3af;
-    }
-
-    /* Legend */
-    .legend {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.8rem;
-      color: #666;
-    }
-
-    .legend-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 4px;
-    }
-
-    .legend-dot.stockout { background: #fee2e2; border: 1px solid #dc2626; }
-    .legend-dot.low { background: #fef3c7; border: 1px solid #f59e0b; }
-    .legend-dot.good { background: #d1fae5; border: 1px solid #10b981; }
-    .legend-dot.overstock { background: #e0f2fe; border: 1px solid #0277bd; }
 
     /* Loading State */
     .loading {
       text-align: center;
-      padding: 48px;
+      padding: 64px;
       color: #666;
     }
 
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #f0f0f0;
+      width: 48px;
+      height: 48px;
+      border: 4px solid #f0f0f0;
       border-top-color: #e91e8a;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
@@ -399,19 +284,57 @@
     /* Empty State */
     .empty-state {
       text-align: center;
-      padding: 48px;
+      padding: 64px;
       color: #666;
     }
 
     .empty-state h3 {
       margin-bottom: 8px;
       color: #222;
+      font-size: 1.25rem;
+    }
+
+    .empty-state p {
+      color: #888;
+    }
+
+    .empty-state .icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+
+    /* Filter Pills */
+    .filter-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .filter-pill:hover {
+      border-color: #e91e8a;
+    }
+
+    .filter-pill.active {
+      background: #e91e8a;
+      color: white;
+      border-color: #e91e8a;
     }
 
     /* Responsive */
     @media (max-width: 768px) {
       .stats-row {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
       }
 
       .nav-links {
@@ -419,7 +342,15 @@
       }
 
       .table-header, .table-row {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
+        grid-template-columns: 1.5fr 1fr 80px 100px;
+      }
+
+      .table-header > div:nth-child(3),
+      .table-header > div:nth-child(4),
+      .table-row > div:nth-child(3),
+      .table-row > div:nth-child(4) {
+        display: none;
       }
     }
   </style>
@@ -432,7 +363,7 @@
       <a href="retargeting.html">Retargeting <span class="pro-badge-small">PRO</span></a>
       <a href="inventoryiq.html">InventoryIQ <span class="pro-badge-small">PRO</span></a>
       <a href="salesiq.html">SalesIQ <span class="pro-badge-small">PRO</span></a>
-      <a href="#" style="color: #666;">Support</a>
+      <a href="support.html" style="color: #666;">Support</a>
       <div class="nav-breadcrumb">
         <a href="index.html">Dashboard</a>
         <span>→</span>
@@ -448,297 +379,88 @@
           <h1 class="page-title">InventoryIQ</h1>
           <span class="pro-badge">PRO</span>
         </div>
-        <p class="page-subtitle">Smart insights to optimize your inventory</p>
+        <p class="page-subtitle">Identify slow-moving inventory that needs markdowns</p>
       </div>
     </div>
 
     <!-- Stats Row -->
     <div class="stats-row">
-      <div class="stat-card danger">
-        <div class="stat-number" id="outOfStockCount">-</div>
-        <div class="stat-label">Out of Stock</div>
+      <div class="stat-card warning" onclick="filterByDays(60)" id="card60">
+        <div class="stat-number" id="count60">-</div>
+        <div class="stat-label">Items 60-89 Days</div>
+        <div class="stat-value" id="value60">$0 tied up</div>
       </div>
-      <div class="stat-card warning">
-        <div class="stat-number" id="lowStockCount">-</div>
-        <div class="stat-label">Low Stock (1-2)</div>
+      <div class="stat-card danger" onclick="filterByDays(90)" id="card90">
+        <div class="stat-number" id="count90">-</div>
+        <div class="stat-label">Items 90-119 Days</div>
+        <div class="stat-value" id="value90">$0 tied up</div>
       </div>
-      <div class="stat-card success">
-        <div class="stat-number" id="healthyStockCount">-</div>
-        <div class="stat-label">Healthy Stock</div>
-      </div>
-      <div class="stat-card info">
-        <div class="stat-number" id="totalValue">-</div>
-        <div class="stat-label">Total Inventory Value</div>
-      </div>
-    </div>
-
-    <!-- Tab Navigation -->
-    <div class="tab-nav">
-      <button class="tab-btn active" onclick="switchTab('all')">All Inventory</button>
-      <button class="tab-btn" onclick="switchTab('lowstock')">Low Stock</button>
-      <button class="tab-btn" onclick="switchTab('sizegaps')">Size Gaps</button>
-    </div>
-
-    <!-- All Inventory Tab -->
-    <div class="tab-content active" id="all-tab">
-      <!-- Legend -->
-      <div class="legend">
-        <div class="legend-item">
-          <div class="legend-dot stockout"></div>
-          <span>Out of Stock</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot low"></div>
-          <span>Low (1-2)</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot good"></div>
-          <span>Healthy (3-10)</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot overstock"></div>
-          <span>Overstock (10+)</span>
-        </div>
-      </div>
-
-      <!-- Filters -->
-      <div class="filters-row">
-        <select class="filter-select" id="stockFilter" onchange="loadInventory()">
-          <option value="all">All Stock Levels</option>
-          <option value="out">Out of Stock</option>
-          <option value="low">Low Stock</option>
-          <option value="over">Overstock</option>
-        </select>
-        <select class="filter-select" id="categoryFilter" onchange="loadInventory()">
-          <option value="all">All Categories</option>
-        </select>
-        <select class="filter-select" id="vendorFilter" onchange="loadInventory()">
-          <option value="all">All Vendors</option>
-        </select>
-      </div>
-
-      <!-- Inventory Table -->
-      <div class="data-table">
-        <div class="table-header inventory-header">
-          <div>Item</div>
-          <div>Vendor</div>
-          <div>Category</div>
-          <div>Qty</div>
-          <div>Cost</div>
-          <div>Value</div>
-          <div>Status</div>
-        </div>
-        <div id="inventoryBody">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Loading inventory data...</p>
-          </div>
-        </div>
+      <div class="stat-card critical" onclick="filterByDays(120)" id="card120">
+        <div class="stat-number" id="count120">-</div>
+        <div class="stat-label">Items 120+ Days</div>
+        <div class="stat-value" id="value120">$0 tied up</div>
       </div>
     </div>
 
-    <!-- Low Stock Tab -->
-    <div class="tab-content" id="lowstock-tab">
-      <div class="data-table">
-        <div class="table-header inventory-header">
-          <div>Item</div>
-          <div>Vendor</div>
-          <div>Category</div>
-          <div>Qty</div>
-          <div>Cost</div>
-          <div>Value</div>
-          <div>Status</div>
-        </div>
-        <div id="lowStockBody">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Loading low stock items...</p>
-          </div>
-        </div>
-      </div>
+    <!-- Filter Pills -->
+    <div class="filter-row">
+      <button class="filter-pill active" onclick="filterByDays('all')" id="filterAll">All Slow Stock</button>
+      <button class="filter-pill" onclick="filterByDays(60)" id="filter60">60-89 Days</button>
+      <button class="filter-pill" onclick="filterByDays(90)" id="filter90">90-119 Days</button>
+      <button class="filter-pill" onclick="filterByDays(120)" id="filter120">120+ Days</button>
     </div>
 
-    <!-- Size Gaps Tab -->
-    <div class="tab-content" id="sizegaps-tab">
-      <!-- Legend -->
-      <div class="legend">
-        <div class="legend-item">
-          <div class="legend-dot stockout"></div>
-          <span>Out (0)</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot low"></div>
-          <span>Low (1-2)</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot good"></div>
-          <span>Good (3-5)</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot overstock"></div>
-          <span>Overstock (6+)</span>
-        </div>
+    <!-- Data Table -->
+    <div class="data-table">
+      <div class="table-header">
+        <div>Item</div>
+        <div>Vendor</div>
+        <div>Category</div>
+        <div>Qty</div>
+        <div>Price</div>
+        <div>Days</div>
+        <div>Suggested</div>
       </div>
-
-      <div class="data-table">
-        <div class="table-header size-gap-header">
-          <div>Item</div>
-          <div>Vendor</div>
-          <div>XS</div>
-          <div>S</div>
-          <div>M</div>
-          <div>L</div>
-          <div>XL</div>
-          <div>XXL</div>
-          <div>Total</div>
-        </div>
-        <div id="sizeGapBody">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Loading size data...</p>
-          </div>
+      <div id="tableBody">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Loading dead stock data...</p>
+          <p style="font-size: 0.85rem; margin-top: 8px; color: #999;">This may take a minute as we analyze your inventory</p>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    let inventoryData = [];
-    let categories = [];
-    let vendors = [];
+    let allItems = [];
+    let currentFilter = 'all';
 
-    // Load initial data
-    async function init() {
-      await loadSummary();
-      await loadFilters();
-      await loadInventory();
-    }
-
-    // Load summary stats
-    async function loadSummary() {
+    async function loadDeadStock() {
       try {
-        const response = await fetch('/api/inventory/summary');
+        const response = await fetch('/api/inventory/dead-stock');
         const data = await response.json();
         
-        document.getElementById('outOfStockCount').textContent = data.stockLevels?.outOfStock || 0;
-        document.getElementById('lowStockCount').textContent = data.stockLevels?.lowStock || 0;
-        document.getElementById('healthyStockCount').textContent = data.stockLevels?.healthyStock || 0;
-        document.getElementById('totalValue').textContent = '$' + (data.totalValue || 0).toLocaleString();
-      } catch (error) {
-        console.error('Error loading summary:', error);
-      }
-    }
-
-    // Load filter options
-    async function loadFilters() {
-      try {
-        const response = await fetch('/api/inventory/categories');
-        const data = await response.json();
-        
-        categories = data.categories || [];
-        vendors = data.vendors || [];
-        
-        // Populate category filter
-        const categorySelect = document.getElementById('categoryFilter');
-        categories.forEach(cat => {
-          const option = document.createElement('option');
-          option.value = cat;
-          option.textContent = cat;
-          categorySelect.appendChild(option);
-        });
-        
-        // Populate vendor filter
-        const vendorSelect = document.getElementById('vendorFilter');
-        vendors.forEach(vendor => {
-          const option = document.createElement('option');
-          option.value = vendor;
-          option.textContent = vendor;
-          vendorSelect.appendChild(option);
-        });
-      } catch (error) {
-        console.error('Error loading filters:', error);
-      }
-    }
-
-    // Load inventory items
-    async function loadInventory() {
-      const stockFilter = document.getElementById('stockFilter').value;
-      const categoryFilter = document.getElementById('categoryFilter').value;
-      const vendorFilter = document.getElementById('vendorFilter').value;
-      
-      document.getElementById('inventoryBody').innerHTML = `
-        <div class="loading">
-          <div class="spinner"></div>
-          <p>Loading inventory data...</p>
-        </div>
-      `;
-      
-      try {
-        let url = `/api/inventory/items?limit=100`;
-        if (stockFilter !== 'all') url += `&filter=${stockFilter}`;
-        if (categoryFilter !== 'all') url += `&category=${encodeURIComponent(categoryFilter)}`;
-        if (vendorFilter !== 'all') url += `&vendor=${encodeURIComponent(vendorFilter)}`;
-        
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        inventoryData = data.items || [];
-        renderInventory();
-        renderSizeGaps();
-      } catch (error) {
-        console.error('Error loading inventory:', error);
-        document.getElementById('inventoryBody').innerHTML = `
-          <div class="empty-state">
-            <h3>Error loading inventory</h3>
-            <p>${error.message}</p>
-          </div>
-        `;
-      }
-    }
-
-    // Load low stock items
-    async function loadLowStock() {
-      document.getElementById('lowStockBody').innerHTML = `
-        <div class="loading">
-          <div class="spinner"></div>
-          <p>Loading low stock items...</p>
-        </div>
-      `;
-      
-      try {
-        const response = await fetch('/api/inventory/low-stock?threshold=2&limit=50');
-        const data = await response.json();
-        
-        const items = data.items || [];
-        
-        if (items.length === 0) {
-          document.getElementById('lowStockBody').innerHTML = `
-            <div class="empty-state">
-              <h3>No low stock items</h3>
-              <p>All items have healthy stock levels.</p>
-            </div>
-          `;
-          return;
+        if (data.error) {
+          throw new Error(data.error);
         }
         
-        document.getElementById('lowStockBody').innerHTML = items.map(item => `
-          <div class="table-row inventory-row">
-            <div>
-              <div class="item-name">${item.name}</div>
-              <div class="item-meta">${item.color || ''} ${item.size ? '• Size ' + item.size : ''}</div>
-            </div>
-            <div class="item-meta">${item.vendor}</div>
-            <div class="item-meta">${item.category || '-'}</div>
-            <div><strong>${item.qty}</strong></div>
-            <div class="price">$${(item.price || 0).toFixed(2)}</div>
-            <div class="price">$${((item.qty || 0) * (item.price || 0)).toFixed(2)}</div>
-            <div><span class="stock-badge low">Low</span></div>
-          </div>
-        `).join('');
+        // Update summary cards
+        document.getElementById('count60').textContent = data.summary.items60Days;
+        document.getElementById('count90').textContent = data.summary.items90Days;
+        document.getElementById('count120').textContent = data.summary.items120Days;
+        
+        document.getElementById('value60').textContent = '$' + data.summary.value60Days.toLocaleString() + ' tied up';
+        document.getElementById('value90').textContent = '$' + data.summary.value90Days.toLocaleString() + ' tied up';
+        document.getElementById('value120').textContent = '$' + data.summary.value120Days.toLocaleString() + ' tied up';
+        
+        allItems = data.items;
+        renderTable();
+        
       } catch (error) {
-        console.error('Error loading low stock:', error);
-        document.getElementById('lowStockBody').innerHTML = `
+        console.error('Error loading dead stock:', error);
+        document.getElementById('tableBody').innerHTML = `
           <div class="empty-state">
+            <div class="icon">⚠️</div>
             <h3>Error loading data</h3>
             <p>${error.message}</p>
           </div>
@@ -746,122 +468,77 @@
       }
     }
 
-    // Render inventory table
-    function renderInventory() {
-      if (inventoryData.length === 0) {
-        document.getElementById('inventoryBody').innerHTML = `
+    function filterByDays(days) {
+      currentFilter = days;
+      
+      // Update filter pills
+      document.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active'));
+      document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('active'));
+      
+      if (days === 'all') {
+        document.getElementById('filterAll').classList.add('active');
+      } else if (days === 60) {
+        document.getElementById('filter60').classList.add('active');
+        document.getElementById('card60').classList.add('active');
+      } else if (days === 90) {
+        document.getElementById('filter90').classList.add('active');
+        document.getElementById('card90').classList.add('active');
+      } else if (days === 120) {
+        document.getElementById('filter120').classList.add('active');
+        document.getElementById('card120').classList.add('active');
+      }
+      
+      renderTable();
+    }
+
+    function renderTable() {
+      let filteredItems = allItems;
+      
+      if (currentFilter === 60) {
+        filteredItems = allItems.filter(item => item.daysStagnant >= 60 && item.daysStagnant < 90);
+      } else if (currentFilter === 90) {
+        filteredItems = allItems.filter(item => item.daysStagnant >= 90 && item.daysStagnant < 120);
+      } else if (currentFilter === 120) {
+        filteredItems = allItems.filter(item => item.daysStagnant >= 120);
+      }
+      
+      if (filteredItems.length === 0) {
+        document.getElementById('tableBody').innerHTML = `
           <div class="empty-state">
-            <h3>No inventory items found</h3>
-            <p>Try adjusting your filters.</p>
+            <div class="icon">🎉</div>
+            <h3>No slow-moving inventory!</h3>
+            <p>All your inventory is moving well. Great job!</p>
           </div>
         `;
         return;
       }
       
-      document.getElementById('inventoryBody').innerHTML = inventoryData.map(item => `
-        <div class="table-row inventory-row">
+      document.getElementById('tableBody').innerHTML = filteredItems.map(item => `
+        <div class="table-row">
           <div>
             <div class="item-name">${item.name}</div>
-            <div class="item-meta">${item.color || ''} ${item.size ? '• Size ' + item.size : ''}</div>
+            <div class="item-meta">${item.color || ''} ${item.size ? '• ' + item.size : ''}</div>
           </div>
           <div class="item-meta">${item.vendor}</div>
           <div class="item-meta">${item.category || '-'}</div>
           <div><strong>${item.qty}</strong></div>
-          <div class="price">$${(item.cost || 0).toFixed(2)}</div>
-          <div class="price">$${(item.value || 0).toFixed(2)}</div>
-          <div><span class="stock-badge ${item.stockStatus}">${getStatusLabel(item.stockStatus)}</span></div>
-        </div>
-      `).join('');
-    }
-
-    // Render size gaps (group by grid/style)
-    function renderSizeGaps() {
-      // Group items by gridId or name
-      const groups = {};
-      
-      for (const item of inventoryData) {
-        const key = item.gridId || item.name.split(' - ')[0];
-        if (!groups[key]) {
-          groups[key] = {
-            name: item.name.split(' - ')[0],
-            vendor: item.vendor,
-            sizes: {},
-            total: 0
-          };
-        }
-        
-        const size = (item.size || '').toUpperCase();
-        if (size) {
-          groups[key].sizes[size] = (groups[key].sizes[size] || 0) + item.qty;
-          groups[key].total += item.qty;
-        }
-      }
-      
-      const groupArray = Object.values(groups).filter(g => Object.keys(g.sizes).length > 0);
-      
-      if (groupArray.length === 0) {
-        document.getElementById('sizeGapBody').innerHTML = `
-          <div class="empty-state">
-            <h3>No size data available</h3>
-            <p>Size information will appear once items with sizes are loaded.</p>
-          </div>
-        `;
-        return;
-      }
-      
-      document.getElementById('sizeGapBody').innerHTML = groupArray.map(group => `
-        <div class="table-row size-gap-row">
+          <div class="price">$${item.price.toFixed(0)}</div>
           <div>
-            <div class="item-name">${group.name}</div>
+            <span class="days-badge ${getDaysBadgeClass(item.daysStagnant)}">${item.daysStagnant} days</span>
           </div>
-          <div class="item-meta">${group.vendor}</div>
-          <div class="size-cell ${getSizeClass(group.sizes['XS'])}">${group.sizes['XS'] ?? '-'}</div>
-          <div class="size-cell ${getSizeClass(group.sizes['S'])}">${group.sizes['S'] ?? '-'}</div>
-          <div class="size-cell ${getSizeClass(group.sizes['M'])}">${group.sizes['M'] ?? '-'}</div>
-          <div class="size-cell ${getSizeClass(group.sizes['L'])}">${group.sizes['L'] ?? '-'}</div>
-          <div class="size-cell ${getSizeClass(group.sizes['XL'])}">${group.sizes['XL'] ?? '-'}</div>
-          <div class="size-cell ${getSizeClass(group.sizes['XXL'])}">${group.sizes['XXL'] ?? '-'}</div>
-          <div><strong>${group.total}</strong></div>
+          <div class="suggested-action">${item.suggestedMarkdown}</div>
         </div>
       `).join('');
     }
 
-    // Helper functions
-    function getStatusLabel(status) {
-      switch(status) {
-        case 'out': return 'Out';
-        case 'low': return 'Low';
-        case 'healthy': return 'Good';
-        case 'over': return 'Over';
-        default: return status;
-      }
+    function getDaysBadgeClass(days) {
+      if (days >= 120) return 'critical';
+      if (days >= 90) return 'danger';
+      return 'warning';
     }
 
-    function getSizeClass(qty) {
-      if (qty === undefined || qty === null) return 'na';
-      if (qty === 0) return 'stockout';
-      if (qty <= 2) return 'low';
-      if (qty <= 5) return 'good';
-      return 'overstock';
-    }
-
-    function switchTab(tab) {
-      // Update buttons
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      
-      // Update content
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      document.getElementById(`${tab}-tab`).classList.add('active');
-      
-      // Load tab-specific data
-      if (tab === 'lowstock') {
-        loadLowStock();
-      }
-    }
-
-    // Initialize
-    init();
+    // Load data on page load
+    loadDeadStock();
   </script>
 </body>
 </html>
