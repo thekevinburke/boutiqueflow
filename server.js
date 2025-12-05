@@ -1014,13 +1014,25 @@ app.get('/api/debug/receipt/:id', async (req, res) => {
 // Debug endpoint to check sales/reporting API
 app.get('/api/debug/sales', async (req, res) => {
   try {
-    // Try to get recent sales data
-    const today = new Date().toISOString().split('T')[0];
+    // Try to get recent sales data with required metrics
     const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
     
-    // Try reporting analyzer
-    const analyzer = await heartlandRequest(`/reporting/analyzer?_filter[completed_at][$gte]=${thirtyDaysAgo}&per_page=5`);
+    // Try reporting analyzer with metrics
+    const analyzer = await heartlandRequest(`/reporting/analyzer?_filter[completed_at][$gte]=${thirtyDaysAgo}&per_page=5&metrics[]=item_qty_sold&metrics[]=item_total&group[]=item_id`);
     res.json({ analyzer });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug endpoint to check sales for a specific item
+app.get('/api/debug/item-sales/:itemId', async (req, res) => {
+  try {
+    const ninetyDaysAgo = new Date(Date.now() - 90*24*60*60*1000).toISOString().split('T')[0];
+    
+    // Get sales for specific item
+    const sales = await heartlandRequest(`/reporting/analyzer?_filter[completed_at][$gte]=${ninetyDaysAgo}&_filter[item_id]=${req.params.itemId}&metrics[]=item_qty_sold&metrics[]=item_total&group[]=completed_at`);
+    res.json({ sales });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
