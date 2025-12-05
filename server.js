@@ -1107,7 +1107,7 @@ app.post('/api/inventory/sync', async (req, res) => {
     let page = 1;
     let hasMore = true;
     
-    while (hasMore && page <= 20) {
+    while (hasMore && page <= 100) { // Increased from 20 to 100 (up to 10,000 items)
       try {
         const inventoryData = await heartlandRequest(`/inventory/values?group[]=item_id&per_page=100&page=${page}`);
         const results = inventoryData.results || [];
@@ -1941,7 +1941,7 @@ async function runNightlySync() {
       let page = 1;
       let hasMore = true;
       
-      while (hasMore && page <= 30) {
+      while (hasMore && page <= 100) { // Increased to 100 (up to 10,000 items)
         try {
           const inventoryData = await heartlandRequest(`/inventory/values?group[]=item_id&per_page=100&page=${page}`);
           const results = inventoryData.results || [];
