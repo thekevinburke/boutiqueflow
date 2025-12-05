@@ -214,6 +214,73 @@
     .stat-card.sent .stat-number { color: #10b981; }
     .stat-card.converted .stat-number { color: #e91e8a; }
 
+    /* Info Tooltips */
+    .stat-label-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-tooltip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      color: #666;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: help;
+      flex-shrink: 0;
+    }
+
+    .info-tooltip:hover {
+      background: #ccc;
+    }
+
+    .info-tooltip .tooltip-text {
+      visibility: hidden;
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 400;
+      white-space: nowrap;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .info-tooltip .tooltip-text::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: #333;
+    }
+
+    .info-tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    /* Allow wider tooltips for longer text */
+    .info-tooltip .tooltip-text.wide {
+      white-space: normal;
+      width: 220px;
+      text-align: center;
+    }
+
     .main-layout {
       display: flex;
       gap: 24px;
@@ -891,19 +958,39 @@
     <div class="stats-row">
       <div class="stat-card lapsed">
         <div class="stat-number" id="statLapsed">24</div>
-        <div class="stat-label">Lapsed Customers</div>
+        <div class="stat-label-row">
+          <div class="stat-label">Lapsed Customers</div>
+          <span class="info-tooltip">i
+            <span class="tooltip-text wide">Customers who haven't purchased in 90+ days (based on threshold setting)</span>
+          </span>
+        </div>
       </div>
       <div class="stat-card queued">
         <div class="stat-number" id="statQueued">8</div>
-        <div class="stat-label">Queued for Outreach</div>
+        <div class="stat-label-row">
+          <div class="stat-label">Queued for Outreach</div>
+          <span class="info-tooltip">i
+            <span class="tooltip-text wide">Top 50 lapsed customers, ranked by lifetime value</span>
+          </span>
+        </div>
       </div>
       <div class="stat-card sent">
         <div class="stat-number" id="statSent">142</div>
-        <div class="stat-label">Sent This Month</div>
+        <div class="stat-label-row">
+          <div class="stat-label">Sent This Month</div>
+          <span class="info-tooltip">i
+            <span class="tooltip-text wide">Demo data — requires Klaviyo integration to track actual sends</span>
+          </span>
+        </div>
       </div>
       <div class="stat-card converted">
         <div class="stat-number" id="statConverted">31</div>
-        <div class="stat-label">Returned & Purchased</div>
+        <div class="stat-label-row">
+          <div class="stat-label">Returned & Purchased</div>
+          <span class="info-tooltip">i
+            <span class="tooltip-text wide">Demo data — requires Klaviyo integration to track conversions</span>
+          </span>
+        </div>
       </div>
     </div>
 
