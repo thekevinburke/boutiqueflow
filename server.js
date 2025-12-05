@@ -938,7 +938,6 @@ app.post('/api/inventory/sync', async (req, res) => {
       GROUP BY category
       HAVING COUNT(DISTINCT item_id) >= 3
       ORDER BY avg_days_to_sell ASC
-      LIMIT 10
     `);
     
     const vendorVelocityResult = await pool.query(`
@@ -964,7 +963,6 @@ app.post('/api/inventory/sync', async (req, res) => {
       GROUP BY vendor
       HAVING COUNT(DISTINCT item_id) >= 3
       ORDER BY avg_days_to_sell ASC
-      LIMIT 10
     `);
     
     const categoryVelocity = categoryVelocityResult.rows
@@ -1765,7 +1763,6 @@ async function runNightlySync() {
         GROUP BY category
         HAVING COUNT(DISTINCT item_id) >= 3
         ORDER BY avg_days_to_sell ASC
-        LIMIT 10
       `);
       
       const vendorVelocityResult = await pool.query(`
@@ -1791,7 +1788,6 @@ async function runNightlySync() {
         GROUP BY vendor
         HAVING COUNT(DISTINCT item_id) >= 3
         ORDER BY avg_days_to_sell ASC
-        LIMIT 10
       `);
       
       const categoryVelocity = categoryVelocityResult.rows
