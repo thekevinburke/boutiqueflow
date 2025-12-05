@@ -2203,6 +2203,32 @@ app.get('/api/debug/locations', async (req, res) => {
   }
 });
 
+// Debug: Check inventory cache items and buckets
+app.get('/api/debug/inventory-items', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT data, synced_at FROM inventory_cache WHERE cache_key = 'inventory_analysis'`
+    );
+    if (result.rows.length === 0) {
+      return res.json({ error: 'No cache data' });
+    }
+    const data = result.rows[0].data;
+    const items = data?.deadStock?.items || [];
+    const bucketCounts = {};
+    items.forEach(i => {
+      bucketCounts[i.bucket] = (bucketCounts[i.bucket] || 0) + 1;
+    });
+    res.json({
+      totalItems: items.length,
+      bucketCounts,
+      sampleItems: items.slice(0, 5),
+      summary: data?.deadStock?.summary
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Debug: Check inventory health calculation details
 app.get('/api/debug/inventory-health', async (req, res) => {
   try {
