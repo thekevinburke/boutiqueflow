@@ -793,21 +793,25 @@ app.get('/api/inventory/data', async (req, res) => {
 
 // Sync inventory data (heavy calculation - run nightly or manually)
 app.post('/api/inventory/sync', async (req, res) => {
+  // Set a long timeout for this endpoint
+  req.setTimeout(120000); // 2 minutes
+  
   try {
     console.log('Starting inventory sync...');
     const startTime = Date.now();
     
-    // ========== STEP 1: Get all receipts and build item receive dates ==========
+    // ========== STEP 1: Get receipts and build item receive dates ==========
     console.log('Fetching receipts...');
-    const oneYearAgo = new Date(Date.now() - 365*24*60*60*1000).toISOString().split('T')[0];
-    const receiptsData = await heartlandRequest(`/purchasing/receipts?per_page=200&_filter[created_at][$gte]=${oneYearAgo}&_filter[status]=complete`);
+    const sixMonthsAgo = new Date(Date.now() - 180*24*60*60*1000).toISOString().split('T')[0];
+    const receiptsData = await heartlandRequest(`/purchasing/receipts?per_page=100&_filter[created_at][$gte]=${sixMonthsAgo}&_filter[status]=complete`);
     console.log(`Found ${receiptsData.results?.length || 0} receipts`);
     
     // Map item_id -> { receiveDate, vendor_id }
     const itemReceiveInfo = {};
-    for (const receipt of receiptsData.results || []) {
+    let receiptCount = 0;
+    for (const receipt of (receiptsData.results || []).slice(0, 50)) { // Limit to 50 receipts
       try {
-        const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=100`);
+        const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=50`);
         const receiveDate = receipt.completed_at || receipt.created_at;
         for (const line of lines.results || []) {
           if (line.item_id) {
@@ -815,20 +819,21 @@ app.post('/api/inventory/sync', async (req, res) => {
               itemReceiveInfo[line.item_id] = {
                 receiveDate: receiveDate,
                 category: line.item_custom?.category || line.item_custom?.Category || '',
-                vendor: null // Will fill in later
+                vendor: null
               };
             }
           }
         }
+        receiptCount++;
       } catch (e) {
         console.error(`Error fetching receipt ${receipt.id} lines:`, e.message);
       }
     }
-    console.log(`Mapped ${Object.keys(itemReceiveInfo).length} items to receive dates`);
+    console.log(`Processed ${receiptCount} receipts, mapped ${Object.keys(itemReceiveInfo).length} items`);
     
-    // ========== STEP 2: Get all sales data ==========
+    // ========== STEP 2: Get sales data ==========
     console.log('Fetching sales data...');
-    const salesData = await heartlandRequest('/reporting/sales?per_page=1000');
+    const salesData = await heartlandRequest('/reporting/sales?per_page=500');
     console.log(`Found ${salesData.results?.length || 0} sales records`);
     
     // Map item_id -> array of sale records
@@ -848,21 +853,21 @@ app.post('/api/inventory/sync', async (req, res) => {
     
     // ========== STEP 3: Get current inventory ==========
     console.log('Fetching inventory...');
-    const inventoryData = await heartlandRequest('/inventory/values?group[]=item_id&per_page=500');
+    const inventoryData = await heartlandRequest('/inventory/values?group[]=item_id&per_page=200');
     console.log(`Found ${inventoryData.results?.length || 0} inventory items`);
     
     // ========== STEP 4: Get item details for categorization ==========
     console.log('Fetching item details...');
     const itemDetails = {};
-    const itemIds = new Set([
-      ...Object.keys(itemReceiveInfo),
-      ...Object.keys(itemSales),
-      ...(inventoryData.results || []).map(i => i.item_id?.toString()).filter(Boolean)
-    ]);
+    
+    // Prioritize items that are in inventory (more relevant)
+    const inventoryItemIds = (inventoryData.results || [])
+      .map(i => i.item_id?.toString())
+      .filter(Boolean);
     
     let itemCount = 0;
-    for (const itemId of itemIds) {
-      if (itemCount >= 300) break; // Limit to avoid timeout
+    for (const itemId of inventoryItemIds) {
+      if (itemCount >= 100) break; // Limit to 100 to avoid timeout
       try {
         const item = await heartlandRequest(`/items/${itemId}`);
         let vendorName = 'Unknown';
@@ -877,6 +882,9 @@ app.post('/api/inventory/sync', async (req, res) => {
           price: item.price || 0
         };
         itemCount++;
+        if (itemCount % 20 === 0) {
+          console.log(`Fetched ${itemCount} item details...`);
+        }
       } catch (e) {
         // Skip items that can't be fetched
       }

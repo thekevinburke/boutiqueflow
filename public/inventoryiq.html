@@ -771,11 +771,19 @@
       
       btn.disabled = true;
       btn.textContent = '⏳ Syncing...';
-      status.textContent = 'Syncing data from Heartland...';
+      status.textContent = 'Analyzing inventory (this takes 30-60 seconds)...';
       status.classList.remove('success');
       
       try {
-        const response = await fetch('/api/inventory/sync', { method: 'POST' });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+        
+        const response = await fetch('/api/inventory/sync', { 
+          method: 'POST',
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
         const result = await response.json();
         
         if (result.success) {
@@ -788,7 +796,11 @@
           status.textContent = 'Sync failed: ' + (result.error || 'Unknown error');
         }
       } catch (error) {
-        status.textContent = 'Sync failed: ' + error.message;
+        if (error.name === 'AbortError') {
+          status.textContent = 'Sync timed out. Try again or check Railway logs.';
+        } else {
+          status.textContent = 'Sync failed: ' + error.message;
+        }
       }
       
       btn.disabled = false;
