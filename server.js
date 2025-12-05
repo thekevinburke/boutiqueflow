@@ -990,6 +990,42 @@ app.get('/api/debug/processed-items', async (req, res) => {
   }
 });
 
+// Debug endpoint to see raw item data from Heartland
+app.get('/api/debug/item/:id', async (req, res) => {
+  try {
+    const item = await heartlandRequest(`/items/${req.params.id}`);
+    res.json(item);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug endpoint to see raw receipt line data from Heartland
+app.get('/api/debug/receipt/:id', async (req, res) => {
+  try {
+    const receipt = await heartlandRequest(`/purchasing/receipts/${req.params.id}`);
+    const lines = await heartlandRequest(`/purchasing/receipts/${req.params.id}/lines?per_page=10`);
+    res.json({ receipt, lines });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug endpoint to check sales/reporting API
+app.get('/api/debug/sales', async (req, res) => {
+  try {
+    // Try to get recent sales data
+    const today = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+    
+    // Try reporting analyzer
+    const analyzer = await heartlandRequest(`/reporting/analyzer?_filter[completed_at][$gte]=${thirtyDaysAgo}&per_page=5`);
+    res.json({ analyzer });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`BoutiqueFlow running at http://localhost:${PORT}`);
