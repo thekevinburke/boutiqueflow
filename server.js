@@ -1205,7 +1205,7 @@ app.post('/api/inventory/sync', async (req, res) => {
           stillOnHand90Days: Math.round(stillOnHandCost90),
           pctOnHand90Days: totalReceivedCost90 > 0 ? Math.round((stillOnHandCost90 / totalReceivedCost90) * 100) : 0,
         },
-        items: deadStockItems.slice(0, 300)
+        items: deadStockItems // Store all aging items
       },
       velocity: {
         byCategory: categoryVelocity,
@@ -2030,7 +2030,7 @@ async function runNightlySync() {
             stillOnHand90Days: Math.round(stillOnHandCost90),
             pctOnHand90Days: totalReceivedCost90 > 0 ? Math.round((stillOnHandCost90 / totalReceivedCost90) * 100) : 0,
           },
-          items: deadStockItems.slice(0, 300)
+          items: deadStockItems // Store all aging items
         },
         velocity: {
           byCategory: categoryVelocity,
