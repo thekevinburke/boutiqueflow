@@ -916,7 +916,7 @@
         
         if (response.ok) {
           // Refresh the list
-          await loadReceipts();
+          await loadDashboard();
         } else {
           const error = await response.json();
           alert('Error skipping receipt: ' + (error.message || 'Unknown error'));
