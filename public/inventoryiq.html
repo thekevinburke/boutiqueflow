@@ -32,7 +32,7 @@
     .health-metric { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; text-align: center; }
     .health-metric-label { font-size: 0.75rem; opacity: 0.8; margin-bottom: 4px; }
     .health-metric-value { font-size: 1.5rem; font-weight: 700; }
-    .health-metric-sub { font-size: 0.8rem; opacity: 0.7; margin-top: 4px; }
+    .health-metric-sub { font-size: 0.75rem; opacity: 0.7; margin-top: 4px; }
     .health-metric.good .health-metric-value { color: #4ade80; }
     .health-metric.warning .health-metric-value { color: #fbbf24; }
     .health-metric.danger .health-metric-value { color: #f87171; }
@@ -40,6 +40,11 @@
     .velocity-section { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
     .velocity-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .velocity-title { font-size: 1rem; font-weight: 600; color: #222; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .info-btn { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #e0e0e0; color: #666; font-size: 0.7rem; font-weight: 700; cursor: help; border: none; position: relative; }
+    .info-btn:hover { background: #d0d0d0; }
+    .tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 400; width: 220px; text-align: left; line-height: 1.4; z-index: 100; margin-bottom: 6px; }
+    .tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #333; }
+    .info-btn:hover .tooltip { display: block; }
     .velocity-list { display: flex; flex-direction: column; gap: 12px; }
     .velocity-item { display: flex; align-items: center; gap: 12px; }
     .velocity-rank { width: 24px; height: 24px; border-radius: 50%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #666; }
@@ -116,7 +121,7 @@
           <h1 class="page-title">InventoryIQ</h1>
           <span class="pro-badge">PRO</span>
         </div>
-        <p class="page-subtitle">X-ray vision into trapped profit — Days since received</p>
+        <p class="page-subtitle">X-ray vision into trapped capital — Days since received</p>
       </div>
       <div class="header-actions">
         <span class="sync-status" id="syncStatus">Loading...</span>
@@ -125,38 +130,44 @@
     </div>
 
     <div class="store-health">
-      <div class="store-health-title">📊 Inventory Health — Goal: Under 20% on hand after 60 days</div>
+      <div class="store-health-title">📊 Inventory Health (at cost) — Goal: Under 20% on hand after 60 days</div>
       <div class="health-metrics">
         <div class="health-metric" id="health30">
           <div class="health-metric-label">Received Last 30 Days</div>
           <div class="health-metric-value" id="pct30">--%</div>
-          <div class="health-metric-sub" id="val30">still on hand</div>
+          <div class="health-metric-sub" id="val30">cost still on hand</div>
         </div>
         <div class="health-metric" id="health45">
           <div class="health-metric-label">Received Last 45 Days</div>
           <div class="health-metric-value" id="pct45">--%</div>
-          <div class="health-metric-sub" id="val45">still on hand</div>
+          <div class="health-metric-sub" id="val45">cost still on hand</div>
         </div>
         <div class="health-metric" id="health60">
           <div class="health-metric-label">Received Last 60 Days</div>
           <div class="health-metric-value" id="pct60">--%</div>
-          <div class="health-metric-sub" id="val60">still on hand</div>
+          <div class="health-metric-sub" id="val60">cost still on hand</div>
         </div>
         <div class="health-metric" id="health90">
           <div class="health-metric-label">Received Last 90 Days</div>
           <div class="health-metric-value" id="pct90">--%</div>
-          <div class="health-metric-sub" id="val90">still on hand</div>
+          <div class="health-metric-sub" id="val90">cost still on hand</div>
         </div>
       </div>
     </div>
 
     <div class="velocity-section">
       <div class="velocity-card">
-        <div class="velocity-title"><span>📦</span> Sell-Through by Category</div>
+        <div class="velocity-title">
+          <span>📦</span> Sell-Through by Category
+          <button class="info-btn">ⓘ<span class="tooltip">Average days from when you receive items in this category to when they sell. Lower = faster selling. Helps identify which product types move quickest.</span></button>
+        </div>
         <div class="velocity-list" id="categoryVelocity"><div class="loading">Loading...</div></div>
       </div>
       <div class="velocity-card">
-        <div class="velocity-title"><span>🏷️</span> Sell-Through by Vendor</div>
+        <div class="velocity-title">
+          <span>🏷️</span> Sell-Through by Vendor
+          <button class="info-btn">ⓘ<span class="tooltip">Average days from receipt to sale by vendor. Shows which vendors' products sell fastest. Use this to guide future buying decisions.</span></button>
+        </div>
         <div class="velocity-list" id="vendorVelocity"><div class="loading">Loading...</div></div>
       </div>
     </div>
@@ -240,16 +251,16 @@
       const metrics = inventoryData?.deadStock?.storeMetrics;
       if (!metrics) return;
       document.getElementById('pct30').textContent = metrics.pctOnHand30Days + '%';
-      document.getElementById('val30').textContent = '$' + (metrics.stillOnHand30Days||0).toLocaleString() + ' of $' + (metrics.received30Days||0).toLocaleString();
+      document.getElementById('val30').textContent = '$' + (metrics.stillOnHand30Days||0).toLocaleString() + ' of $' + (metrics.received30Days||0).toLocaleString() + ' cost';
       setHealthClass('health30', metrics.pctOnHand30Days, 50, 70);
       document.getElementById('pct45').textContent = metrics.pctOnHand45Days + '%';
-      document.getElementById('val45').textContent = '$' + (metrics.stillOnHand45Days||0).toLocaleString() + ' of $' + (metrics.received45Days||0).toLocaleString();
+      document.getElementById('val45').textContent = '$' + (metrics.stillOnHand45Days||0).toLocaleString() + ' of $' + (metrics.received45Days||0).toLocaleString() + ' cost';
       setHealthClass('health45', metrics.pctOnHand45Days, 40, 60);
       document.getElementById('pct60').textContent = metrics.pctOnHand60Days + '%';
-      document.getElementById('val60').textContent = '$' + (metrics.stillOnHand60Days||0).toLocaleString() + ' of $' + (metrics.received60Days||0).toLocaleString();
+      document.getElementById('val60').textContent = '$' + (metrics.stillOnHand60Days||0).toLocaleString() + ' of $' + (metrics.received60Days||0).toLocaleString() + ' cost';
       setHealthClass('health60', metrics.pctOnHand60Days, 20, 40);
       document.getElementById('pct90').textContent = metrics.pctOnHand90Days + '%';
-      document.getElementById('val90').textContent = '$' + (metrics.stillOnHand90Days||0).toLocaleString() + ' of $' + (metrics.received90Days||0).toLocaleString();
+      document.getElementById('val90').textContent = '$' + (metrics.stillOnHand90Days||0).toLocaleString() + ' of $' + (metrics.received90Days||0).toLocaleString() + ' cost';
       setHealthClass('health90', metrics.pctOnHand90Days, 10, 25);
     }
 

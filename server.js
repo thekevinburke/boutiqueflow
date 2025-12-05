@@ -1061,9 +1061,10 @@ app.post('/api/inventory/sync', async (req, res) => {
     }
     
     // ========== STEP 5: Calculate store health metrics (ALL items received) ==========
+    // Uses COST values (your actual money tied up)
     console.log('Calculating store health metrics...');
-    let totalReceivedValue30 = 0, totalReceivedValue45 = 0, totalReceivedValue60 = 0, totalReceivedValue90 = 0;
-    let stillOnHandValue30 = 0, stillOnHandValue45 = 0, stillOnHandValue60 = 0, stillOnHandValue90 = 0;
+    let totalReceivedCost30 = 0, totalReceivedCost45 = 0, totalReceivedCost60 = 0, totalReceivedCost90 = 0;
+    let stillOnHandCost30 = 0, stillOnHandCost45 = 0, stillOnHandCost60 = 0, stillOnHandCost90 = 0;
     
     for (const itemId of Object.keys(itemReceiveData)) {
       const receiveInfo = itemReceiveData[itemId];
@@ -1072,28 +1073,28 @@ app.post('/api/inventory/sync', async (req, res) => {
       const receivedDate = new Date(receiveInfo.receivedDate);
       const daysSinceReceived = Math.floor((now - receivedDate) / (1000 * 60 * 60 * 24));
       
-      const soldInfo = itemSoldData[itemId] || { qtySold: 0, price: 0 };
       const qtyOnHand = inventoryLookup[itemId] || 0;
       
-      const price = soldInfo.price || receiveInfo.cost * 2.5 || 0;
-      const totalReceivedRetail = receiveInfo.qtyReceived * price;
-      const retailValueOnHand = qtyOnHand * price;
+      // Use COST for store health metrics
+      const cost = receiveInfo.cost || 0;
+      const totalReceivedCostValue = receiveInfo.qtyReceived * cost;
+      const costOnHand = qtyOnHand * cost;
       
       if (daysSinceReceived <= 30) {
-        totalReceivedValue30 += totalReceivedRetail;
-        stillOnHandValue30 += retailValueOnHand;
+        totalReceivedCost30 += totalReceivedCostValue;
+        stillOnHandCost30 += costOnHand;
       }
       if (daysSinceReceived <= 45) {
-        totalReceivedValue45 += totalReceivedRetail;
-        stillOnHandValue45 += retailValueOnHand;
+        totalReceivedCost45 += totalReceivedCostValue;
+        stillOnHandCost45 += costOnHand;
       }
       if (daysSinceReceived <= 60) {
-        totalReceivedValue60 += totalReceivedRetail;
-        stillOnHandValue60 += retailValueOnHand;
+        totalReceivedCost60 += totalReceivedCostValue;
+        stillOnHandCost60 += costOnHand;
       }
       if (daysSinceReceived <= 90) {
-        totalReceivedValue90 += totalReceivedRetail;
-        stillOnHandValue90 += retailValueOnHand;
+        totalReceivedCost90 += totalReceivedCostValue;
+        stillOnHandCost90 += costOnHand;
       }
     }
     
@@ -1192,18 +1193,18 @@ app.post('/api/inventory/sync', async (req, res) => {
           totalValue: Math.round((valueWatch + value60Days + value90Days + value120Days) * 100) / 100,
         },
         storeMetrics: {
-          received30Days: Math.round(totalReceivedValue30),
-          stillOnHand30Days: Math.round(stillOnHandValue30),
-          pctOnHand30Days: totalReceivedValue30 > 0 ? Math.round((stillOnHandValue30 / totalReceivedValue30) * 100) : 0,
-          received45Days: Math.round(totalReceivedValue45),
-          stillOnHand45Days: Math.round(stillOnHandValue45),
-          pctOnHand45Days: totalReceivedValue45 > 0 ? Math.round((stillOnHandValue45 / totalReceivedValue45) * 100) : 0,
-          received60Days: Math.round(totalReceivedValue60),
-          stillOnHand60Days: Math.round(stillOnHandValue60),
-          pctOnHand60Days: totalReceivedValue60 > 0 ? Math.round((stillOnHandValue60 / totalReceivedValue60) * 100) : 0,
-          received90Days: Math.round(totalReceivedValue90),
-          stillOnHand90Days: Math.round(stillOnHandValue90),
-          pctOnHand90Days: totalReceivedValue90 > 0 ? Math.round((stillOnHandValue90 / totalReceivedValue90) * 100) : 0,
+          received30Days: Math.round(totalReceivedCost30),
+          stillOnHand30Days: Math.round(stillOnHandCost30),
+          pctOnHand30Days: totalReceivedCost30 > 0 ? Math.round((stillOnHandCost30 / totalReceivedCost30) * 100) : 0,
+          received45Days: Math.round(totalReceivedCost45),
+          stillOnHand45Days: Math.round(stillOnHandCost45),
+          pctOnHand45Days: totalReceivedCost45 > 0 ? Math.round((stillOnHandCost45 / totalReceivedCost45) * 100) : 0,
+          received60Days: Math.round(totalReceivedCost60),
+          stillOnHand60Days: Math.round(stillOnHandCost60),
+          pctOnHand60Days: totalReceivedCost60 > 0 ? Math.round((stillOnHandCost60 / totalReceivedCost60) * 100) : 0,
+          received90Days: Math.round(totalReceivedCost90),
+          stillOnHand90Days: Math.round(stillOnHandCost90),
+          pctOnHand90Days: totalReceivedCost90 > 0 ? Math.round((stillOnHandCost90 / totalReceivedCost90) * 100) : 0,
         },
         items: deadStockItems.slice(0, 300)
       },
@@ -1852,9 +1853,10 @@ async function runNightlySync() {
       
       // ========== CALCULATE STORE HEALTH METRICS ==========
       // This looks at ALL items received in each time window, regardless of current inventory
+      // Uses COST values (your actual money tied up)
       const now = new Date();
-      let totalReceivedValue30 = 0, totalReceivedValue45 = 0, totalReceivedValue60 = 0, totalReceivedValue90 = 0;
-      let stillOnHandValue30 = 0, stillOnHandValue45 = 0, stillOnHandValue60 = 0, stillOnHandValue90 = 0;
+      let totalReceivedCost30 = 0, totalReceivedCost45 = 0, totalReceivedCost60 = 0, totalReceivedCost90 = 0;
+      let stillOnHandCost30 = 0, stillOnHandCost45 = 0, stillOnHandCost60 = 0, stillOnHandCost90 = 0;
       
       for (const itemId of Object.keys(itemReceiveData)) {
         const receiveInfo = itemReceiveData[itemId];
@@ -1863,32 +1865,29 @@ async function runNightlySync() {
         const receivedDate = new Date(receiveInfo.receivedDate);
         const daysSinceReceived = Math.floor((now - receivedDate) / (1000 * 60 * 60 * 24));
         
-        const soldInfo = itemSoldData[itemId] || { qtySold: 0, price: 0 };
         const qtyOnHand = inventoryLookup[itemId] || 0;
         
-        // Get price (from sales or estimate from cost)
-        const price = soldInfo.price || receiveInfo.cost * 2.5 || 0;
-        
-        // Calculate values
-        const totalReceivedRetail = receiveInfo.qtyReceived * price;
-        const retailValueOnHand = qtyOnHand * price;
+        // Use COST for store health metrics
+        const cost = receiveInfo.cost || 0;
+        const totalReceivedCostValue = receiveInfo.qtyReceived * cost;
+        const costOnHand = qtyOnHand * cost;
         
         // Add to appropriate time buckets
         if (daysSinceReceived <= 30) {
-          totalReceivedValue30 += totalReceivedRetail;
-          stillOnHandValue30 += retailValueOnHand;
+          totalReceivedCost30 += totalReceivedCostValue;
+          stillOnHandCost30 += costOnHand;
         }
         if (daysSinceReceived <= 45) {
-          totalReceivedValue45 += totalReceivedRetail;
-          stillOnHandValue45 += retailValueOnHand;
+          totalReceivedCost45 += totalReceivedCostValue;
+          stillOnHandCost45 += costOnHand;
         }
         if (daysSinceReceived <= 60) {
-          totalReceivedValue60 += totalReceivedRetail;
-          stillOnHandValue60 += retailValueOnHand;
+          totalReceivedCost60 += totalReceivedCostValue;
+          stillOnHandCost60 += costOnHand;
         }
         if (daysSinceReceived <= 90) {
-          totalReceivedValue90 += totalReceivedRetail;
-          stillOnHandValue90 += retailValueOnHand;
+          totalReceivedCost90 += totalReceivedCostValue;
+          stillOnHandCost90 += costOnHand;
         }
       }
       
@@ -1985,20 +1984,20 @@ async function runNightlySync() {
             totalItems: totalWatch + total60Days + total90Days + total120Days,
             totalValue: Math.round((valueWatch + value60Days + value90Days + value120Days) * 100) / 100,
           },
-          // Store-wide metrics
+          // Store-wide metrics (using COST values)
           storeMetrics: {
-            received30Days: Math.round(totalReceivedValue30),
-            stillOnHand30Days: Math.round(stillOnHandValue30),
-            pctOnHand30Days: totalReceivedValue30 > 0 ? Math.round((stillOnHandValue30 / totalReceivedValue30) * 100) : 0,
-            received45Days: Math.round(totalReceivedValue45),
-            stillOnHand45Days: Math.round(stillOnHandValue45),
-            pctOnHand45Days: totalReceivedValue45 > 0 ? Math.round((stillOnHandValue45 / totalReceivedValue45) * 100) : 0,
-            received60Days: Math.round(totalReceivedValue60),
-            stillOnHand60Days: Math.round(stillOnHandValue60),
-            pctOnHand60Days: totalReceivedValue60 > 0 ? Math.round((stillOnHandValue60 / totalReceivedValue60) * 100) : 0,
-            received90Days: Math.round(totalReceivedValue90),
-            stillOnHand90Days: Math.round(stillOnHandValue90),
-            pctOnHand90Days: totalReceivedValue90 > 0 ? Math.round((stillOnHandValue90 / totalReceivedValue90) * 100) : 0,
+            received30Days: Math.round(totalReceivedCost30),
+            stillOnHand30Days: Math.round(stillOnHandCost30),
+            pctOnHand30Days: totalReceivedCost30 > 0 ? Math.round((stillOnHandCost30 / totalReceivedCost30) * 100) : 0,
+            received45Days: Math.round(totalReceivedCost45),
+            stillOnHand45Days: Math.round(stillOnHandCost45),
+            pctOnHand45Days: totalReceivedCost45 > 0 ? Math.round((stillOnHandCost45 / totalReceivedCost45) * 100) : 0,
+            received60Days: Math.round(totalReceivedCost60),
+            stillOnHand60Days: Math.round(stillOnHandCost60),
+            pctOnHand60Days: totalReceivedCost60 > 0 ? Math.round((stillOnHandCost60 / totalReceivedCost60) * 100) : 0,
+            received90Days: Math.round(totalReceivedCost90),
+            stillOnHand90Days: Math.round(stillOnHandCost90),
+            pctOnHand90Days: totalReceivedCost90 > 0 ? Math.round((stillOnHandCost90 / totalReceivedCost90) * 100) : 0,
           },
           items: deadStockItems.slice(0, 300)
         },
