@@ -2085,7 +2085,7 @@ app.get('/api/sales/analysis', async (req, res) => {
       ORDER BY day_of_week
     `);
     
-    // Sales by hour - IN-STORE ONLY (location = 'Chattanooga')
+    // Sales by hour - EXCLUDE ONLINE (filter out 'Online', 'Web', etc.)
     const hourlyResult = await pool.query(`
       SELECT 
         hour_of_day,
@@ -2093,7 +2093,7 @@ app.get('/api/sales/analysis', async (req, res) => {
         COUNT(*) as transaction_count
       FROM sales_transactions
       WHERE transaction_date >= NOW() - INTERVAL '${days} days'
-        AND (location_name = 'Chattanooga' OR location_name IS NULL)
+        AND (location_name IS NULL OR location_name NOT ILIKE '%online%' AND location_name NOT ILIKE '%web%')
       GROUP BY hour_of_day
       ORDER BY hour_of_day
     `);
@@ -2148,6 +2148,88 @@ app.get('/api/sales/analysis', async (req, res) => {
     });
   } catch (error) {
     console.error('Error reading sales data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug: Check location values in sales_transactions
+app.get('/api/debug/locations', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT location_name, COUNT(*) as count 
+      FROM sales_transactions 
+      GROUP BY location_name 
+      ORDER BY count DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug: Check inventory health calculation details
+app.get('/api/debug/inventory-health', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    
+    // Get items received in last X days with their current status
+    const result = await pool.query(`
+      SELECT 
+        ir.item_id,
+        ir.item_name,
+        ir.vendor,
+        ir.received_date,
+        ir.qty_received,
+        ir.unit_cost,
+        (ir.qty_received * ir.unit_cost) as total_cost_received
+      FROM item_receipts ir
+      WHERE ir.received_date >= NOW() - INTERVAL '${days} days'
+      ORDER BY ir.received_date DESC
+      LIMIT 50
+    `);
+    
+    // Get totals
+    const totalsResult = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT item_id) as items_received,
+        SUM(qty_received) as total_qty,
+        SUM(qty_received * unit_cost) as total_cost
+      FROM item_receipts
+      WHERE received_date >= NOW() - INTERVAL '${days} days'
+    `);
+    
+    res.json({
+      days,
+      totals: totalsResult.rows[0],
+      recentItems: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug: Check item receipts for a specific item
+app.get('/api/debug/item/:itemId', async (req, res) => {
+  try {
+    const itemId = req.params.itemId;
+    
+    const receipts = await pool.query(`
+      SELECT * FROM item_receipts WHERE item_id = $1 ORDER BY received_date
+    `, [itemId]);
+    
+    const sales = await pool.query(`
+      SELECT transaction_date, quantity, total_amount 
+      FROM sales_transactions 
+      WHERE item_id = $1 
+      ORDER BY transaction_date
+    `, [itemId]);
+    
+    res.json({
+      itemId,
+      receipts: receipts.rows,
+      sales: sales.rows
+    });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
