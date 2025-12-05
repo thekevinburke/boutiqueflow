@@ -1014,12 +1014,34 @@ app.get('/api/debug/receipt/:id', async (req, res) => {
 // Debug endpoint to check sales/reporting API
 app.get('/api/debug/sales', async (req, res) => {
   try {
-    // Try to get recent sales data with required metrics
-    const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+    // Try multiple endpoints to see what works
+    const results = {};
     
-    // Try reporting analyzer with metrics - using array bracket notation
-    const analyzer = await heartlandRequest(`/reporting/analyzer?metrics[]=item_qty_sold&metrics[]=item_total&group[]=item_id&per_page=10`);
-    res.json({ analyzer });
+    // Try 1: /sales/tickets
+    try {
+      const tickets = await heartlandRequest(`/sales/tickets?per_page=3`);
+      results.tickets = tickets;
+    } catch (e) {
+      results.tickets_error = e.message;
+    }
+    
+    // Try 2: /sales/transactions  
+    try {
+      const transactions = await heartlandRequest(`/sales/transactions?per_page=3`);
+      results.transactions = transactions;
+    } catch (e) {
+      results.transactions_error = e.message;
+    }
+    
+    // Try 3: /reporting/sales
+    try {
+      const reportingSales = await heartlandRequest(`/reporting/sales?per_page=3`);
+      results.reporting_sales = reportingSales;
+    } catch (e) {
+      results.reporting_sales_error = e.message;
+    }
+    
+    res.json(results);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
