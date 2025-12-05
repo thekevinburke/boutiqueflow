@@ -455,6 +455,35 @@
       border-radius: 50%;
       background: currentColor;
     }
+
+    /* Date Controls */
+    .date-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .date-btn {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #666;
+      transition: all 0.2s ease;
+    }
+
+    .date-btn:hover {
+      border-color: #e91e8a;
+      color: #e91e8a;
+    }
+
+    .date-btn.active {
+      background: #e91e8a;
+      color: white;
+      border-color: #e91e8a;
+    }
   </style>
 </head>
 <body>
@@ -493,9 +522,17 @@
         </div>
         <p class="page-subtitle">Sales patterns and timing insights</p>
       </div>
-      <div class="data-status">
-        <span class="data-status-dot"></span>
-        Sample data — syncs nightly
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div class="date-controls">
+          <button class="date-btn" onclick="setDateRange('week')">Week</button>
+          <button class="date-btn active" onclick="setDateRange('month')">Month</button>
+          <button class="date-btn" onclick="setDateRange('quarter')">3 Months</button>
+          <button class="date-btn" onclick="setDateRange('year')">Year</button>
+        </div>
+        <div class="data-status">
+          <span class="data-status-dot"></span>
+          Sample data
+        </div>
       </div>
     </div>
 
@@ -505,6 +542,46 @@
       <div class="insight-content">
         <h4>AI Analysis</h4>
         <p id="aiInsight">Saturday is your strongest day with 34% higher sales than weekday average. Peak hours are 2-5pm across all days. Consider adding staff during these peak windows and evaluating whether 10am opening is necessary — that hour averages only $82 in sales.</p>
+      </div>
+    </div>
+
+    <!-- Two Column: Sales by Day & Category Performance -->
+    <div class="two-column">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Sales by Day of Week</span>
+        </div>
+        <div class="time-grid" id="dayGrid">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Category Performance</span>
+        </div>
+        <div class="category-grid" id="categoryGrid">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Average Sales by Hour -->
+    <div class="hours-analysis">
+      <div class="hours-analysis-header">
+        <div class="hours-analysis-title">Average Sales by Hour</div>
+      </div>
+      <div class="hours-bar-chart" id="hourlyBarChart">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="hours-summary">
+        <div class="hours-summary-item">
+          <div class="hours-summary-dot peak"></div>
+          <span class="hours-summary-text"><strong>Peak hours:</strong> 2pm - 5pm (avg $892/hr)</span>
+        </div>
+        <div class="hours-summary-item">
+          <div class="hours-summary-dot slow"></div>
+          <span class="hours-summary-text"><strong>Slowest hours:</strong> 10am - 11am (avg $127/hr)</span>
+        </div>
       </div>
     </div>
 
@@ -533,46 +610,6 @@
       </div>
       <div class="heatmap-container">
         <div class="heatmap-grid" id="heatmapGrid">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Average Sales by Hour -->
-    <div class="hours-analysis">
-      <div class="hours-analysis-header">
-        <div class="hours-analysis-title">Average Sales by Hour</div>
-      </div>
-      <div class="hours-bar-chart" id="hourlyBarChart">
-        <!-- Rendered by JS -->
-      </div>
-      <div class="hours-summary">
-        <div class="hours-summary-item">
-          <div class="hours-summary-dot peak"></div>
-          <span class="hours-summary-text"><strong>Peak hours:</strong> 2pm - 5pm (avg $892/hr)</span>
-        </div>
-        <div class="hours-summary-item">
-          <div class="hours-summary-dot slow"></div>
-          <span class="hours-summary-text"><strong>Slowest hours:</strong> 10am - 11am (avg $127/hr)</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Two Column: Sales by Day & Category Performance -->
-    <div class="two-column">
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Sales by Day of Week</span>
-        </div>
-        <div class="time-grid" id="dayGrid">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Category Performance</span>
-        </div>
-        <div class="category-grid" id="categoryGrid">
           <!-- Rendered by JS -->
         </div>
       </div>
@@ -731,6 +768,24 @@
     renderHourlyChart();
     renderDayGrid();
     renderCategoryGrid();
+
+    // Date range selector (sample data for now)
+    function setDateRange(range) {
+      // Update button states
+      document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // In the future, this will fetch data for the selected range
+      // For now, just show different sample insights
+      const insights = {
+        week: "This week, Thursday outperformed with 28% higher sales than last Thursday. Dresses category is up 15% week-over-week. Your busiest hour was Saturday 3pm with $720 in sales.",
+        month: "Saturday is your strongest day with 34% higher sales than weekday average. Peak hours are 2-5pm across all days. Consider adding staff during these peak windows and evaluating whether 10am opening is necessary — that hour averages only $82 in sales.",
+        quarter: "Over the past 3 months, Outerwear category grew 42% as temperatures dropped. Saturday consistently outperforms other days by 30%+. Your slowest month was October, strongest was November (holiday shopping boost).",
+        year: "Year-to-date, Dresses remains your top category at 31% of revenue. Saturday accounts for 24% of weekly sales on average. Peak selling season is October-December (48% of annual revenue)."
+      };
+      
+      document.getElementById('aiInsight').textContent = insights[range] || insights.month;
+    }
   </script>
 </body>
 </html>
