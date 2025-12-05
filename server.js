@@ -712,8 +712,12 @@ app.post('/api/receipts/:id/skip', async (req, res) => {
     const gridIds = new Set();
     const itemIds = [];
     
-    for (const line of (lines.results || [])) {
-      if (line.item_id) {
+    // Process items in parallel (batch of 10 at a time to avoid rate limits)
+    const lineItems = (lines.results || []).filter(line => line.item_id);
+    
+    for (let i = 0; i < lineItems.length; i += 10) {
+      const batch = lineItems.slice(i, i + 10);
+      await Promise.all(batch.map(async (line) => {
         try {
           const item = await heartlandRequest(`/items/${line.item_id}`);
           if (item.grid_id) {
@@ -724,7 +728,7 @@ app.post('/api/receipts/:id/skip', async (req, res) => {
         } catch (e) {
           // Item might be deleted, skip it
         }
-      }
+      }));
     }
     
     // Mark all grids as skipped
@@ -2301,6 +2305,54 @@ app.get('/api/debug/inventory-items', async (req, res) => {
       bucketCounts,
       sampleItems: items.slice(0, 5),
       summary: data?.deadStock?.summary
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug: Check customer transactions
+app.get('/api/debug/customer/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+    
+    // Find customer
+    const custResult = await pool.query(`
+      SELECT * FROM customers WHERE email = $1
+    `, [email]);
+    
+    if (custResult.rows.length === 0) {
+      return res.json({ error: 'Customer not found', email });
+    }
+    
+    const customer = custResult.rows[0];
+    
+    // Get all transactions for this customer
+    const txResult = await pool.query(`
+      SELECT transaction_date, item_name, quantity, total_amount
+      FROM sales_transactions
+      WHERE customer_id = $1
+      ORDER BY transaction_date DESC
+    `, [customer.heartland_customer_id]);
+    
+    // Get unique dates
+    const uniqueDates = await pool.query(`
+      SELECT DISTINCT DATE(transaction_date) as visit_date
+      FROM sales_transactions
+      WHERE customer_id = $1
+      ORDER BY visit_date DESC
+    `, [customer.heartland_customer_id]);
+    
+    res.json({
+      customer: {
+        id: customer.heartland_customer_id,
+        email: customer.email,
+        name: `${customer.first_name} ${customer.last_name}`,
+        total_purchases: customer.total_purchases,
+        lifetime_value: customer.lifetime_value
+      },
+      uniqueVisitDates: uniqueDates.rows,
+      transactions: txResult.rows
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
