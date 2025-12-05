@@ -1009,15 +1009,10 @@ app.post('/api/inventory/sync', async (req, res) => {
     
     const itemReceiveData = {};
     for (const row of receiveDataResult.rows) {
-      // Build display name: "Style Name - Color - Size" (omit empty parts)
-      const nameParts = [row.item_name];
-      if (row.item_color) nameParts.push(row.item_color);
-      if (row.item_size) nameParts.push(row.item_size);
-      
       itemReceiveData[row.item_id] = {
         receivedDate: row.last_received,
         qtyReceived: parseInt(row.total_received) || 0,
-        name: nameParts.join(' - '),
+        name: row.item_name, // Already in "Style - Color - Size" format from Heartland description
         category: row.category,
         vendor: row.vendor,
         cost: parseFloat(row.unit_cost) || 0
@@ -1700,7 +1695,8 @@ async function runNightlySync() {
             
             try {
               const item = await heartlandRequest(`/items/${line.item_id}`);
-              itemName = item.custom?.style_name || item.description || 'Unknown Item';
+              // Use description which already has "Style - Color - Size" format
+              itemName = item.description || item.custom?.style_name || 'Unknown Item';
               itemColor = item.custom?.color_name || item.custom?.Color_Name || '';
               itemSize = item.custom?.size || item.custom?.Size || '';
               category = item.custom?.category || item.custom?.Category || 'Uncategorized';
@@ -1848,15 +1844,10 @@ async function runNightlySync() {
       
       const itemReceiveData = {};
       for (const row of receiveDataResult.rows) {
-        // Build display name: "Style Name - Color - Size" (omit empty parts)
-        const nameParts = [row.item_name];
-        if (row.item_color) nameParts.push(row.item_color);
-        if (row.item_size) nameParts.push(row.item_size);
-        
         itemReceiveData[row.item_id] = {
           receivedDate: row.last_received,
           qtyReceived: parseInt(row.total_received) || 0,
-          name: nameParts.join(' - '),
+          name: row.item_name, // Already in "Style - Color - Size" format from Heartland description
           category: row.category,
           vendor: row.vendor,
           cost: parseFloat(row.unit_cost) || 0
