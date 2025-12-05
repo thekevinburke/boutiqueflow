@@ -2263,6 +2263,8 @@ app.get('/api/debug/inventory-health', async (req, res) => {
       SELECT 
         ir.item_id,
         ir.item_name,
+        ir.item_color,
+        ir.item_size,
         ir.vendor,
         ir.received_date,
         ir.qty_received,
@@ -2288,6 +2290,21 @@ app.get('/api/debug/inventory-health', async (req, res) => {
       days,
       totals: totalsResult.rows[0],
       recentItems: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Debug: Check raw Heartland item data
+app.get('/api/debug/heartland-item/:itemId', async (req, res) => {
+  try {
+    const item = await heartlandRequest(`/items/${req.params.itemId}`);
+    res.json({
+      id: item.id,
+      description: item.description,
+      custom: item.custom,
+      allFields: Object.keys(item)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
