@@ -2513,6 +2513,206 @@ app.get('/api/debug/customer/:email', async (req, res) => {
   }
 });
 
+// ========== REVIEWIQ ENDPOINTS ==========
+
+// Create review_requests table if not exists
+pool.query(`
+  CREATE TABLE IF NOT EXISTS review_requests (
+    id SERIAL PRIMARY KEY,
+    customer_id VARCHAR(50) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    sent_at TIMESTAMP,
+    method VARCHAR(10),
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(customer_id)
+  )
+`).catch(e => console.error('Error creating review_requests table:', e));
+
+pool.query(`
+  CREATE TABLE IF NOT EXISTS review_never_ask (
+    id SERIAL PRIMARY KEY,
+    customer_id VARCHAR(50) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(e => console.error('Error creating review_never_ask table:', e));
+
+// Get qualified customers for review requests
+app.get('/api/reviewiq/customers', async (req, res) => {
+  try {
+    // Qualification criteria:
+    // - $300+ lifetime value
+    // - 2+ visits
+    // - Purchased in last 14 days
+    // - Has in-store purchase (location_name is not null/empty)
+    // - Not already sent a request (or sent > 90 days ago)
+    // - Not in "never ask" list
+    
+    const result = await pool.query(`
+      WITH customer_stats AS (
+        SELECT 
+          c.heartland_customer_id,
+          c.first_name,
+          c.last_name,
+          c.email,
+          c.phone,
+          c.total_purchases as visit_count,
+          c.lifetime_value,
+          c.last_purchase_date,
+          EXTRACT(DAY FROM NOW() - c.last_purchase_date) as days_since_purchase
+        FROM customers c
+        WHERE c.lifetime_value >= 300
+          AND c.total_purchases >= 2
+          AND c.last_purchase_date >= NOW() - INTERVAL '14 days'
+          AND (c.email IS NOT NULL OR c.phone IS NOT NULL)
+          AND c.heartland_customer_id NOT IN (
+            SELECT customer_id FROM review_never_ask
+          )
+          AND c.heartland_customer_id NOT IN (
+            SELECT customer_id FROM review_requests 
+            WHERE sent_at > NOW() - INTERVAL '90 days'
+          )
+      ),
+      in_store_customers AS (
+        SELECT DISTINCT customer_id
+        FROM sales_transactions
+        WHERE location_name IS NOT NULL 
+          AND location_name != ''
+          AND transaction_date >= NOW() - INTERVAL '14 days'
+      )
+      SELECT cs.*
+      FROM customer_stats cs
+      INNER JOIN in_store_customers isc ON cs.heartland_customer_id = isc.customer_id
+      ORDER BY cs.lifetime_value DESC
+      LIMIT 50
+    `);
+    
+    // Get last purchase details for each customer
+    const customers = [];
+    for (const cust of result.rows) {
+      const lastPurchaseResult = await pool.query(`
+        SELECT item_name, item_color, item_size, total_amount, transaction_date
+        FROM sales_transactions
+        WHERE customer_id = $1
+        ORDER BY transaction_date DESC
+        LIMIT 1
+      `, [cust.heartland_customer_id]);
+      
+      const lastPurchase = lastPurchaseResult.rows[0];
+      
+      // Calculate qualification score (more criteria met = higher score)
+      let qualificationScore = 2; // Base: $300+ and 2+ visits
+      if (cust.lifetime_value >= 500) qualificationScore++;
+      if (cust.visit_count >= 3) qualificationScore++;
+      if (cust.visit_count >= 5) qualificationScore++;
+      
+      customers.push({
+        id: cust.heartland_customer_id,
+        name: `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || 'Unknown Customer',
+        email: cust.email,
+        phone: cust.phone,
+        totalVisits: cust.visit_count,
+        lifetimeValue: parseFloat(cust.lifetime_value),
+        daysSincePurchase: Math.floor(cust.days_since_purchase) || 0,
+        qualificationScore: qualificationScore,
+        lastPurchase: lastPurchase ? {
+          item: lastPurchase.item_name,
+          color: lastPurchase.item_color,
+          size: lastPurchase.item_size,
+          price: parseFloat(lastPurchase.total_amount),
+          date: lastPurchase.transaction_date
+        } : null
+      });
+    }
+    
+    // Get stats
+    const sentThisMonth = await pool.query(`
+      SELECT COUNT(*) FROM review_requests 
+      WHERE sent_at >= DATE_TRUNC('month', NOW())
+    `);
+    
+    const onCooldown = await pool.query(`
+      SELECT COUNT(*) FROM review_requests 
+      WHERE sent_at > NOW() - INTERVAL '90 days'
+    `);
+    
+    res.json({
+      customers,
+      stats: {
+        qualified: customers.length,
+        queued: customers.length,
+        sentThisMonth: parseInt(sentThisMonth.rows[0].count),
+        onCooldown: parseInt(onCooldown.rows[0].count)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching ReviewIQ customers:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send review request
+app.post('/api/reviewiq/send', async (req, res) => {
+  try {
+    const { customerId, message, method } = req.body;
+    
+    // Record the request
+    await pool.query(`
+      INSERT INTO review_requests (customer_id, status, sent_at, method, message)
+      VALUES ($1, 'sent', NOW(), $2, $3)
+      ON CONFLICT (customer_id)
+      DO UPDATE SET status = 'sent', sent_at = NOW(), method = $2, message = $3
+    `, [customerId, method, message]);
+    
+    // TODO: Send to Klaviyo
+    // For now, just log it
+    console.log(`ReviewIQ: Sent ${method} review request to customer ${customerId}`);
+    
+    res.json({ success: true, message: 'Review request sent' });
+  } catch (error) {
+    console.error('Error sending review request:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Skip customer (just remove from queue for now, can be asked again later)
+app.post('/api/reviewiq/skip', async (req, res) => {
+  try {
+    const { customerId } = req.body;
+    
+    // Record as skipped (will show again after 90 days if they make another purchase)
+    await pool.query(`
+      INSERT INTO review_requests (customer_id, status)
+      VALUES ($1, 'skipped')
+      ON CONFLICT (customer_id)
+      DO UPDATE SET status = 'skipped'
+    `, [customerId]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error skipping customer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Never ask customer
+app.post('/api/reviewiq/never-ask', async (req, res) => {
+  try {
+    const { customerId } = req.body;
+    
+    await pool.query(`
+      INSERT INTO review_never_ask (customer_id)
+      VALUES ($1)
+      ON CONFLICT (customer_id) DO NOTHING
+    `, [customerId]);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error adding to never-ask list:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Debug: Check inventory health calculation details
 app.get('/api/debug/inventory-health', async (req, res) => {
   try {
