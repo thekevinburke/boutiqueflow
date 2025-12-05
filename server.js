@@ -702,7 +702,8 @@ app.get('/api/receipts/:id', async (req, res) => {
 // Skip entire receipt (mark all items as skipped)
 app.post('/api/receipts/:id/skip', async (req, res) => {
   try {
-    const receiptId = req.params.id;
+    // Extract numeric ID from "REC-100385" format
+    const receiptId = req.params.id.replace('REC-', '');
     
     // Get all items in this receipt from Heartland
     const lines = await heartlandRequest(`/purchasing/receipts/${receiptId}/lines?per_page=100`);
