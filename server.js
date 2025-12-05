@@ -730,20 +730,20 @@ app.post('/api/receipts/:id/skip', async (req, res) => {
     // Mark all grids as skipped
     for (const gridId of gridIds) {
       await pool.query(`
-        INSERT INTO processed_items (item_type, item_id, receipt_id, status, updated_at)
+        INSERT INTO processed_items (item_type, heartland_id, receipt_id, status, updated_at)
         VALUES ('grid', $1, $2, 'skipped', CURRENT_TIMESTAMP)
-        ON CONFLICT (item_type, item_id, receipt_id)
-        DO UPDATE SET status = 'skipped', updated_at = CURRENT_TIMESTAMP
+        ON CONFLICT (item_type, heartland_id)
+        DO UPDATE SET status = 'skipped', receipt_id = $2, updated_at = CURRENT_TIMESTAMP
       `, [gridId.toString(), receiptId]);
     }
     
     // Mark all standalone items as skipped
     for (const itemId of itemIds) {
       await pool.query(`
-        INSERT INTO processed_items (item_type, item_id, receipt_id, status, updated_at)
+        INSERT INTO processed_items (item_type, heartland_id, receipt_id, status, updated_at)
         VALUES ('item', $1, $2, 'skipped', CURRENT_TIMESTAMP)
-        ON CONFLICT (item_type, item_id, receipt_id)
-        DO UPDATE SET status = 'skipped', updated_at = CURRENT_TIMESTAMP
+        ON CONFLICT (item_type, heartland_id)
+        DO UPDATE SET status = 'skipped', receipt_id = $2, updated_at = CURRENT_TIMESTAMP
       `, [itemId.toString(), receiptId]);
     }
     
