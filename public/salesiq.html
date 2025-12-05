@@ -5,512 +5,87 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SalesIQ - BoutiqueFlow</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+    .header { background: white; border-bottom: 1px solid #e0e0e0; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { font-size: 1.5rem; font-weight: 700; color: #222; text-decoration: none; }
+    .logo span { color: #e91e8a; }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links a { display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem; }
+    .nav-links a.active { color: #e91e8a; font-weight: 600; }
+    .pro-badge-small { background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 20px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    .page-title-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .page-title { font-size: 1.5rem; margin: 0; color: #222; }
+    .pro-badge { background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+    .page-subtitle { color: #666; margin: 0; }
+    
+    .header-controls { display: flex; align-items: center; gap: 16px; }
+    .date-controls { display: flex; gap: 8px; }
+    .date-btn { padding: 8px 16px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: #666; transition: all 0.2s; }
+    .date-btn:hover { border-color: #e91e8a; color: #e91e8a; }
+    .date-btn.active { background: #e91e8a; color: white; border-color: #e91e8a; }
+    .data-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; background: #f0f0f0; color: #666; }
+    .data-status.live { background: #d1fae5; color: #059669; }
+    .data-status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      background: #f5f5f5;
-      color: #333;
-      line-height: 1.6;
-    }
+    .insight-box { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; gap: 16px; align-items: flex-start; }
+    .insight-icon { font-size: 1.5rem; }
+    .insight-content h4 { color: #92400e; margin-bottom: 8px; font-size: 0.95rem; }
+    .insight-content p { color: #78350f; font-size: 0.9rem; line-height: 1.5; }
 
-    .header {
-      background: white;
-      border-bottom: 1px solid #e0e0e0;
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+    @media (max-width: 768px) { .two-column { grid-template-columns: 1fr; } }
+    
+    .panel { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .panel-title { font-weight: 600; color: #222; }
 
-    .logo {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #222;
-    }
+    .time-grid { display: flex; flex-direction: column; gap: 8px; }
+    .time-row { display: flex; align-items: center; gap: 12px; }
+    .time-label { width: 40px; font-size: 0.85rem; font-weight: 500; color: #666; }
+    .time-bar-container { flex: 1; height: 28px; background: #f5f5f5; border-radius: 4px; overflow: hidden; }
+    .time-bar { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 12px; font-size: 0.8rem; font-weight: 600; color: white; transition: width 0.3s; }
+    .time-bar.regular { background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); }
+    .time-bar.best { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+    .time-transactions { font-size: 0.8rem; color: #888; width: 70px; text-align: right; }
 
-    .logo span {
-      color: #e91e8a;
-    }
+    .category-grid { display: flex; flex-direction: column; gap: 12px; }
+    .category-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+    .category-row:last-child { border-bottom: none; }
+    .category-icon { font-size: 1.25rem; }
+    .category-info { flex: 1; }
+    .category-name { font-weight: 500; color: #222; font-size: 0.9rem; }
+    .category-revenue { font-size: 0.8rem; color: #888; }
+    .category-transactions { font-size: 0.8rem; color: #666; }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 32px 20px;
-    }
-
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 24px;
-    }
-
-    .page-title-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-
-    .page-title {
-      font-size: 1.5rem;
-      margin: 0;
-      color: #222;
-    }
-
-    .pro-badge {
-      background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%);
-      color: white;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-
-    .page-subtitle {
-      color: #666;
-      margin: 0;
-    }
-
-    /* AI Insight Box */
-    .insight-box {
-      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 24px;
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-    }
-
-    .insight-icon {
-      font-size: 1.5rem;
-    }
-
-    .insight-content h4 {
-      color: #92400e;
-      margin-bottom: 8px;
-      font-size: 0.95rem;
-    }
-
-    .insight-content p {
-      color: #78350f;
-      font-size: 0.9rem;
-      line-height: 1.6;
-    }
-
-    /* Heatmap Section */
-    .heatmap-section {
-      background: white;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .heatmap-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .heatmap-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #222;
-    }
-
-    .heatmap-legend {
-      display: flex;
-      gap: 16px;
-    }
-
-    .heatmap-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.75rem;
-      color: #666;
-    }
-
-    .heatmap-legend-color {
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
-    }
-
-    .heatmap-legend-color.low { background: #f0f0f0; }
-    .heatmap-legend-color.medium { background: #fde68a; }
-    .heatmap-legend-color.high { background: #fbbf24; }
-    .heatmap-legend-color.peak { background: #f59e0b; }
-
-    .heatmap-grid {
-      display: grid;
-      grid-template-columns: 50px repeat(10, 1fr);
-      gap: 4px;
-    }
-
-    .heatmap-header-cell {
-      text-align: center;
-      font-size: 0.7rem;
-      color: #888;
-      padding: 8px 4px;
-    }
-
-    .heatmap-row-label {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding-right: 8px;
-      font-size: 0.75rem;
-      color: #666;
-      font-weight: 500;
-    }
-
-    .heatmap-cell {
-      aspect-ratio: 1;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.65rem;
-      font-weight: 600;
-      color: #666;
-      min-height: 32px;
-    }
-
-    .heatmap-cell.low { background: #f5f5f5; color: #999; }
-    .heatmap-cell.medium { background: #fef3c7; color: #92400e; }
-    .heatmap-cell.high { background: #fde68a; color: #78350f; }
-    .heatmap-cell.peak { background: #fbbf24; color: #451a03; }
-    .heatmap-cell.closed { background: #f0f0f0; color: #ccc; }
-
-    /* Hours Analysis */
-    .hours-analysis {
-      background: white;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .hours-analysis-header {
-      margin-bottom: 20px;
-    }
-
-    .hours-analysis-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #222;
-    }
-
-    .hours-bar-chart {
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-      height: 180px;
-      padding: 0 10px;
-    }
-
-    .hour-bar-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100%;
-    }
-
-    .hour-bar {
-      width: 100%;
-      max-width: 48px;
-      border-radius: 4px 4px 0 0;
-      transition: all 0.3s ease;
-    }
-
+    .hours-analysis { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .hours-analysis-header { margin-bottom: 20px; }
+    .hours-analysis-title { font-size: 1.1rem; font-weight: 600; color: #222; }
+    .hours-bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 180px; padding: 0 10px; }
+    .hour-bar-container { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+    .hour-bar { width: 100%; max-width: 48px; border-radius: 4px 4px 0 0; transition: all 0.3s; }
     .hour-bar.low { background: #e5e5e5; }
     .hour-bar.medium { background: #fde68a; }
     .hour-bar.high { background: #fbbf24; }
     .hour-bar.peak { background: #f59e0b; }
+    .hour-label { font-size: 0.7rem; color: #888; margin-top: 8px; }
+    .hour-value { font-size: 0.65rem; color: #666; margin-bottom: 4px; }
 
-    .hour-label {
-      font-size: 0.7rem;
-      color: #888;
-      margin-top: 8px;
-    }
-
-    .hour-value {
-      font-size: 0.65rem;
-      color: #666;
-      margin-bottom: 4px;
-    }
-
-    .hours-summary {
-      display: flex;
-      gap: 24px;
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid #f0f0f0;
-    }
-
-    .hours-summary-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .hours-summary-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
-    .hours-summary-dot.peak { background: #f59e0b; }
-    .hours-summary-dot.slow { background: #e5e5e5; }
-
-    .hours-summary-text {
-      font-size: 0.85rem;
-      color: #666;
-    }
-
-    .hours-summary-text strong {
-      color: #222;
-    }
-
-    /* Two Column Layout */
-    .two-column {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 24px;
-    }
-
-    @media (max-width: 768px) {
-      .two-column {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .panel {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .panel-title {
-      font-weight: 600;
-      color: #222;
-    }
-
-    /* Day Grid */
-    .time-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .time-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .time-label {
-      width: 40px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: #666;
-    }
-
-    .time-bar-container {
-      flex: 1;
-      height: 28px;
-      background: #f5f5f5;
-      border-radius: 4px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .time-bar {
-      height: 100%;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding-right: 8px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: white;
-      transition: width 0.5s ease;
-    }
-
-    .time-bar.regular { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
-    .time-bar.best { background: linear-gradient(90deg, #34d399, #10b981); }
-
-    .time-transactions {
-      font-size: 0.75rem;
-      color: #888;
-      width: 80px;
-      text-align: right;
-    }
-
-    /* Category Grid */
-    .category-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .category-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .category-icon {
-      font-size: 1.25rem;
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #f5f5f5;
-      border-radius: 8px;
-    }
-
-    .category-info {
-      flex: 1;
-    }
-
-    .category-name {
-      font-weight: 500;
-      color: #222;
-      font-size: 0.9rem;
-    }
-
-    .category-revenue {
-      font-size: 0.8rem;
-      color: #888;
-    }
-
-    .category-change {
-      font-size: 0.8rem;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 20px;
-    }
-
-    .category-change.up {
-      background: #d1fae5;
-      color: #059669;
-    }
-
-    .category-change.down {
-      background: #fee2e2;
-      color: #dc2626;
-    }
-
-    /* Loading State */
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #666;
-    }
-
-    /* Data status badge */
-    .data-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      background: #f0f0f0;
-      color: #666;
-    }
-
-    .data-status.live {
-      background: #d1fae5;
-      color: #059669;
-    }
-
-    .data-status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: currentColor;
-    }
-
-    /* Date Controls */
-    .date-controls {
-      display: flex;
-      gap: 8px;
-    }
-
-    .date-btn {
-      padding: 8px 16px;
-      border: 1px solid #ddd;
-      border-radius: 20px;
-      background: white;
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: #666;
-      transition: all 0.2s ease;
-    }
-
-    .date-btn:hover {
-      border-color: #e91e8a;
-      color: #e91e8a;
-    }
-
-    .date-btn.active {
-      background: #e91e8a;
-      color: white;
-      border-color: #e91e8a;
-    }
+    .loading { text-align: center; padding: 40px; color: #666; }
   </style>
 </head>
 <body>
   <div class="header">
-    <a href="index.html" class="logo" style="text-decoration: none;">Boutique<span>Flow</span>.ai</a>
-    <div style="display: flex; align-items: center; gap: 24px;">
-      <a href="index.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
-        ReceiptAI
-      </a>
-      <a href="first-dibs.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
-        First Dibs
-        <span style="background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">PRO</span>
-      </a>
-      <a href="retargeting.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
-        Retargeting
-        <span style="background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">PRO</span>
-      </a>
-      <a href="inventoryiq.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
-        InventoryIQ
-        <span style="background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">PRO</span>
-      </a>
-      <a href="salesiq.html" style="display: flex; align-items: center; gap: 8px; text-decoration: none; color: #e91e8a; font-weight: 600; font-size: 0.9rem;">
-        SalesIQ
-        <span style="background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;">PRO</span>
-      </a>
-      <a href="support.html" style="text-decoration: none; color: #666; font-weight: 500; font-size: 0.9rem;">Support</a>
-    </div>
+    <a href="index.html" class="logo">Boutique<span>Flow</span></a>
+    <nav class="nav-links">
+      <a href="index.html">ReceiptAI</a>
+      <a href="inventoryiq.html">InventoryIQ <span class="pro-badge-small">PRO</span></a>
+      <a href="salesiq.html" class="active"><strong>SalesIQ</strong> <span class="pro-badge-small">PRO</span></a>
+      <a href="first-dibs.html">First Dibs <span class="pro-badge-small">PRO</span></a>
+      <a href="retargeting.html">Retargeting <span class="pro-badge-small">PRO</span></a>
+    </nav>
   </div>
 
   <div class="container">
@@ -522,418 +97,198 @@
         </div>
         <p class="page-subtitle">Sales patterns and timing insights</p>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px;">
+      <div class="header-controls">
         <div class="date-controls">
-          <button class="date-btn" onclick="setDateRange('week')">Week</button>
-          <button class="date-btn active" onclick="setDateRange('month')">Month</button>
-          <button class="date-btn" onclick="setDateRange('quarter')">3 Months</button>
-          <button class="date-btn" onclick="setDateRange('year')">Year</button>
+          <button class="date-btn" data-days="7" onclick="setDateRange(7)">Week</button>
+          <button class="date-btn" data-days="30" onclick="setDateRange(30)">Month</button>
+          <button class="date-btn active" data-days="90" onclick="setDateRange(90)">3 Months</button>
+          <button class="date-btn" data-days="365" onclick="setDateRange(365)">Year</button>
         </div>
-        <div class="data-status">
+        <div class="data-status" id="dataStatus">
           <span class="data-status-dot"></span>
-          Sample data
+          Loading...
         </div>
       </div>
     </div>
 
-    <!-- AI Insight Box -->
     <div class="insight-box">
       <div class="insight-icon">💡</div>
       <div class="insight-content">
         <h4>AI Analysis</h4>
-        <p id="aiInsight">Saturday is your strongest day with 34% higher sales than weekday average. Peak hours are 2-5pm across all days. Consider adding staff during these peak windows and evaluating whether 10am opening is necessary — that hour averages only $82 in sales.</p>
+        <p id="aiInsight">Analyzing your sales patterns...</p>
       </div>
     </div>
 
-    <!-- Two Column: Sales by Day & Category Performance -->
     <div class="two-column">
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Sales by Day of Week</span>
+          <div class="panel-title">📅 Sales by Day of Week</div>
         </div>
         <div class="time-grid" id="dayGrid">
-          <!-- Rendered by JS -->
+          <div class="loading">Loading...</div>
         </div>
       </div>
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Category Performance</span>
+          <div class="panel-title">🏷️ Top Categories</div>
         </div>
         <div class="category-grid" id="categoryGrid">
-          <!-- Rendered by JS -->
+          <div class="loading">Loading...</div>
         </div>
       </div>
     </div>
 
-    <!-- Average Sales by Hour -->
     <div class="hours-analysis">
       <div class="hours-analysis-header">
-        <div class="hours-analysis-title">Average Sales by Hour</div>
+        <div class="hours-analysis-title">⏰ Average Sale by Hour</div>
       </div>
       <div class="hours-bar-chart" id="hourlyBarChart">
-        <!-- Rendered by JS -->
-      </div>
-      <div class="hours-summary">
-        <div class="hours-summary-item">
-          <div class="hours-summary-dot peak"></div>
-          <span class="hours-summary-text"><strong>Peak hours:</strong> 2pm - 5pm (avg $892/hr)</span>
-        </div>
-        <div class="hours-summary-item">
-          <div class="hours-summary-dot slow"></div>
-          <span class="hours-summary-text"><strong>Slowest hours:</strong> 10am - 11am (avg $127/hr)</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hourly Heatmap -->
-    <div class="heatmap-section">
-      <div class="heatmap-header">
-        <div class="heatmap-title">Sales by Day & Hour</div>
-        <div class="heatmap-legend">
-          <div class="heatmap-legend-item">
-            <div class="heatmap-legend-color low"></div>
-            <span>Slow</span>
-          </div>
-          <div class="heatmap-legend-item">
-            <div class="heatmap-legend-color medium"></div>
-            <span>Moderate</span>
-          </div>
-          <div class="heatmap-legend-item">
-            <div class="heatmap-legend-color high"></div>
-            <span>Busy</span>
-          </div>
-          <div class="heatmap-legend-item">
-            <div class="heatmap-legend-color peak"></div>
-            <span>Peak</span>
-          </div>
-        </div>
-      </div>
-      <div class="heatmap-container">
-        <div class="heatmap-grid" id="heatmapGrid">
-          <!-- Rendered by JS -->
-        </div>
+        <div class="loading">Loading...</div>
       </div>
     </div>
   </div>
 
   <script>
-    // State - will be populated from API
     let dailySales = [];
     let categories = [];
-    let heatmapData = { hours: [], days: [], values: [] };
     let hourlyAvg = [];
     let syncedAt = null;
-    let isLoading = true;
+    let currentDays = 90;
 
-    // Category icons mapping
     const categoryIcons = {
-      'Dresses': '👗',
-      'Tops': '👚',
-      'Bottoms': '👖',
-      'Pants': '👖',
-      'Jeans': '👖',
-      'Outerwear': '🧥',
-      'Jackets': '🧥',
-      'Coats': '🧥',
-      'Accessories': '👜',
-      'Bags': '👜',
-      'Shoes': '👠',
-      'Jewelry': '💎',
-      'Sweaters': '🧶',
-      'Swimwear': '👙',
-      'Activewear': '🏃‍♀️',
-      'default': '🛍️'
+      'Dresses': '👗', 'Tops': '👚', 'Bottoms': '👖', 'Pants': '👖', 'Jeans': '👖',
+      'Outerwear': '🧥', 'Jackets': '🧥', 'Coats': '🧥', 'Accessories': '👜', 'Bags': '👜',
+      'Shoes': '👠', 'Jewelry': '💎', 'Sweaters': '🧶', 'Swimwear': '👙', 'Activewear': '🏃‍♀️', 'default': '🛍️'
     };
 
     function getCategoryIcon(name) {
       return categoryIcons[name] || categoryIcons['default'];
     }
 
-    // Fetch data from API
-    async function loadSalesData() {
+    async function loadSalesData(days) {
       try {
-        isLoading = true;
-        updateDataStatus('loading');
+        currentDays = days;
+        document.getElementById('dataStatus').innerHTML = '<span class="data-status-dot" style="background:#f59e0b"></span> Loading...';
         
-        const response = await fetch('/api/sales/analysis');
+        const response = await fetch('/api/sales/analysis?days=' + days);
         const data = await response.json();
         
         if (data.error) {
-          console.log('No sales data:', data.message);
-          updateDataStatus('no-data');
-          showNoDataMessage();
+          showNoData();
           return;
         }
         
-        // Populate state from API response
         dailySales = data.dailySales || [];
-        
-        // Mark the best day
         if (dailySales.length > 0) {
-          const maxRevenue = Math.max(...dailySales.map(d => d.revenue));
-          dailySales = dailySales.map(d => ({
-            ...d,
-            best: d.revenue === maxRevenue && d.revenue > 0
-          }));
+          const maxRev = Math.max(...dailySales.map(d => d.revenue));
+          dailySales = dailySales.map(d => ({ ...d, best: d.revenue === maxRev && d.revenue > 0 }));
         }
         
-        // Process categories with icons
-        categories = (data.categories || []).map(c => ({
-          ...c,
-          icon: getCategoryIcon(c.name),
-          change: 0 // We'll add period-over-period comparison later
-        }));
-        
-        // Heatmap data
-        if (data.heatmap) {
-          heatmapData = data.heatmap;
-        }
-        
-        // Hourly averages
+        categories = (data.categories || []).map(c => ({ ...c, icon: getCategoryIcon(c.name) }));
         hourlyAvg = data.hourlyAvg || [];
-        
-        // Sync timestamp
         syncedAt = data.syncedAt;
         
-        isLoading = false;
-        updateDataStatus('live');
+        const syncTime = syncedAt ? new Date(syncedAt).toLocaleDateString() : 'Unknown';
+        document.getElementById('dataStatus').innerHTML = '<span class="data-status-dot" style="background:#10b981"></span> Synced ' + syncTime;
+        document.getElementById('dataStatus').classList.add('live');
         
-        // Render all charts
         renderAll();
         generateAIInsight();
-        
       } catch (error) {
-        console.error('Error loading sales data:', error);
-        updateDataStatus('error');
-        showNoDataMessage();
+        console.error('Error:', error);
+        showNoData();
       }
     }
 
-    function updateDataStatus(status) {
-      const statusEl = document.querySelector('.data-status');
-      const dotEl = document.querySelector('.data-status-dot');
-      
-      if (status === 'loading') {
-        dotEl.style.background = '#f59e0b';
-        statusEl.innerHTML = '<span class="data-status-dot" style="background: #f59e0b;"></span> Loading...';
-      } else if (status === 'live') {
-        dotEl.style.background = '#10b981';
-        const syncTime = syncedAt ? new Date(syncedAt).toLocaleDateString() : 'Unknown';
-        statusEl.innerHTML = `<span class="data-status-dot" style="background: #10b981;"></span> Live data (synced ${syncTime})`;
-      } else if (status === 'no-data') {
-        dotEl.style.background = '#ef4444';
-        statusEl.innerHTML = '<span class="data-status-dot" style="background: #ef4444;"></span> No data - run sync';
-      } else if (status === 'error') {
-        dotEl.style.background = '#ef4444';
-        statusEl.innerHTML = '<span class="data-status-dot" style="background: #ef4444;"></span> Error loading';
-      }
-    }
-
-    function showNoDataMessage() {
-      document.getElementById('dayGrid').innerHTML = `
-        <div style="padding: 40px; text-align: center; color: #666;">
-          <p>No sales data available yet.</p>
-          <p style="font-size: 0.85rem; margin-top: 8px;">Sales data will be synced nightly, or you can trigger a manual sync.</p>
-          <button onclick="triggerSync()" style="margin-top: 16px; padding: 10px 20px; background: #e91e8a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
-            Sync Now
-          </button>
-        </div>
-      `;
-      document.getElementById('categoryGrid').innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No category data</div>';
-      document.getElementById('hourlyBarChart').innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No hourly data</div>';
-      document.getElementById('heatmapGrid').innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No heatmap data</div>';
+    function showNoData() {
+      document.getElementById('dataStatus').innerHTML = '<span class="data-status-dot" style="background:#ef4444"></span> No data';
+      document.getElementById('dayGrid').innerHTML = '<div style="padding:40px;text-align:center;color:#666"><p>No sales data yet.</p><button onclick="triggerSync()" style="margin-top:16px;padding:10px 20px;background:#e91e8a;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">Sync Now</button></div>';
+      document.getElementById('categoryGrid').innerHTML = '<div style="padding:20px;text-align:center;color:#666">No category data</div>';
+      document.getElementById('hourlyBarChart').innerHTML = '<div style="padding:40px;text-align:center;color:#666">No hourly data</div>';
     }
 
     async function triggerSync() {
       try {
-        updateDataStatus('loading');
+        document.getElementById('dataStatus').innerHTML = '<span class="data-status-dot" style="background:#f59e0b"></span> Syncing...';
         await fetch('/api/sync/manual', { method: 'POST' });
-        alert('Sync started! This may take several minutes. Refresh the page in a few minutes to see updated data.');
-      } catch (error) {
-        alert('Error starting sync: ' + error.message);
-      }
+        alert('Sync started! Refresh in a few minutes.');
+      } catch (e) { alert('Error: ' + e.message); }
     }
 
     function renderAll() {
-      renderHeatmap();
-      renderHourlyChart();
       renderDayGrid();
       renderCategoryGrid();
+      renderHourlyChart();
     }
 
     function generateAIInsight() {
       if (dailySales.length === 0) {
-        document.getElementById('aiInsight').textContent = 'Sync sales data to see AI-powered insights about your sales patterns.';
+        document.getElementById('aiInsight').textContent = 'Sync sales data to see AI-powered insights.';
         return;
       }
-      
-      // Find best day
       const bestDay = dailySales.find(d => d.best);
-      const avgRevenue = dailySales.reduce((sum, d) => sum + d.revenue, 0) / dailySales.length;
+      const avgRevenue = dailySales.reduce((s, d) => s + d.revenue, 0) / dailySales.length;
       const bestDayPct = bestDay ? Math.round((bestDay.revenue / avgRevenue - 1) * 100) : 0;
-      
-      // Find peak hours
       const sortedHours = [...hourlyAvg].sort((a, b) => b.avg - a.avg);
       const peakHours = sortedHours.slice(0, 3).map(h => h.hour).join(', ');
-      const slowestHour = sortedHours[sortedHours.length - 1];
-      
-      // Top category
-      const topCategory = categories[0]?.name || 'Unknown';
+      const slowest = sortedHours[sortedHours.length - 1];
+      const topCat = categories[0]?.name || '';
       
       let insight = '';
-      if (bestDay) {
-        insight = `${bestDay.day} is your strongest day with ${bestDayPct}% higher sales than average. `;
-      }
-      if (peakHours) {
-        insight += `Peak hours are ${peakHours}. `;
-      }
-      if (slowestHour && slowestHour.avg > 0) {
-        insight += `Your slowest hour is ${slowestHour.hour} averaging $${slowestHour.avg}. `;
-      }
-      if (topCategory) {
-        insight += `${topCategory} is your top-performing category.`;
-      }
+      if (bestDay) insight += bestDay.day + ' is your strongest day with ' + bestDayPct + '% higher sales than average. ';
+      if (peakHours) insight += 'Peak hours are ' + peakHours + '. ';
+      if (slowest?.avg > 0) insight += 'Slowest hour is ' + slowest.hour + ' averaging $' + slowest.avg + '. ';
+      if (topCat) insight += topCat + ' is your top category.';
       
-      document.getElementById('aiInsight').textContent = insight || 'Analyzing your sales patterns...';
+      document.getElementById('aiInsight').textContent = insight || 'Analyzing...';
     }
 
-    // Render heatmap
-    function renderHeatmap() {
-      const grid = document.getElementById('heatmapGrid');
-      
-      if (!heatmapData.values || heatmapData.values.length === 0 || heatmapData.values.flat().every(v => v === 0)) {
-        grid.innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No heatmap data available</div>';
-        return;
-      }
-      
-      const maxVal = Math.max(...heatmapData.values.flat().filter(v => v > 0));
-      
-      let html = '<div class="heatmap-header-cell"></div>';
-      heatmapData.hours.forEach(hour => {
-        html += `<div class="heatmap-header-cell">${hour}</div>`;
-      });
-      
-      heatmapData.days.forEach((day, dayIndex) => {
-        html += `<div class="heatmap-row-label">${day}</div>`;
-        heatmapData.values[dayIndex].forEach(val => {
-          let level = 'low';
-          if (val === 0) level = 'closed';
-          else if (val > maxVal * 0.7) level = 'peak';
-          else if (val > maxVal * 0.4) level = 'high';
-          else if (val > maxVal * 0.2) level = 'medium';
-          
-          const display = val === 0 ? '—' : '$' + val;
-          html += `<div class="heatmap-cell ${level}">${display}</div>`;
-        });
-      });
-      
-      grid.innerHTML = html;
-    }
-
-    // Render hourly bar chart
     function renderHourlyChart() {
       const container = document.getElementById('hourlyBarChart');
-      
-      if (hourlyAvg.length === 0 || hourlyAvg.every(h => h.avg === 0)) {
-        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No hourly data available</div>';
+      if (!hourlyAvg.length || hourlyAvg.every(h => h.avg === 0)) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:#666">No hourly data</div>';
         return;
       }
-      
       const maxAvg = Math.max(...hourlyAvg.map(h => h.avg));
-      
-      let html = '';
-      hourlyAvg.forEach(h => {
-        const heightPct = maxAvg > 0 ? (h.avg / maxAvg) * 100 : 0;
-        let level = 'low';
-        if (h.avg > maxAvg * 0.8) level = 'peak';
-        else if (h.avg > maxAvg * 0.5) level = 'high';
-        else if (h.avg > maxAvg * 0.3) level = 'medium';
-        
-        html += `
-          <div class="hour-bar-container">
-            <div class="hour-value">$${h.avg}</div>
-            <div class="hour-bar ${level}" style="height: ${heightPct}%;"></div>
-            <div class="hour-label">${h.hour}</div>
-          </div>
-        `;
-      });
-      
-      container.innerHTML = html;
+      container.innerHTML = hourlyAvg.map(h => {
+        const pct = maxAvg > 0 ? (h.avg / maxAvg) * 100 : 0;
+        let lvl = 'low';
+        if (h.avg > maxAvg * 0.8) lvl = 'peak';
+        else if (h.avg > maxAvg * 0.5) lvl = 'high';
+        else if (h.avg > maxAvg * 0.3) lvl = 'medium';
+        return '<div class="hour-bar-container"><div class="hour-value">$' + h.avg + '</div><div class="hour-bar ' + lvl + '" style="height:' + pct + '%"></div><div class="hour-label">' + h.hour + '</div></div>';
+      }).join('');
     }
 
-    // Render day grid
     function renderDayGrid() {
       const container = document.getElementById('dayGrid');
-      
-      if (dailySales.length === 0 || dailySales.every(d => d.revenue === 0)) {
-        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No daily sales data available</div>';
+      if (!dailySales.length || dailySales.every(d => d.revenue === 0)) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:#666">No daily sales data</div>';
         return;
       }
-      
       const maxRev = Math.max(...dailySales.map(d => d.revenue));
-      
-      let html = '';
-      dailySales.forEach(d => {
-        const widthPct = maxRev > 0 ? (d.revenue / maxRev) * 100 : 0;
-        html += `
-          <div class="time-row">
-            <div class="time-label">${d.day}</div>
-            <div class="time-bar-container">
-              <div class="time-bar ${d.best ? 'best' : 'regular'}" style="width: ${widthPct}%;">
-                $${d.revenue.toLocaleString()}
-              </div>
-            </div>
-            <div class="time-transactions">${d.transactions} txns</div>
-          </div>
-        `;
-      });
-      
-      container.innerHTML = html;
+      container.innerHTML = dailySales.map(d => {
+        const pct = maxRev > 0 ? (d.revenue / maxRev) * 100 : 0;
+        return '<div class="time-row"><div class="time-label">' + d.day + '</div><div class="time-bar-container"><div class="time-bar ' + (d.best ? 'best' : 'regular') + '" style="width:' + pct + '%">$' + d.revenue.toLocaleString() + '</div></div><div class="time-transactions">' + d.transactions + ' txns</div></div>';
+      }).join('');
     }
 
-    // Render category grid
     function renderCategoryGrid() {
       const container = document.getElementById('categoryGrid');
-      
-      if (categories.length === 0) {
-        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No category data available</div>';
+      if (!categories.length) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666">No category data</div>';
         return;
       }
-      
-      let html = '';
-      categories.forEach(c => {
-        html += `
-          <div class="category-row">
-            <div class="category-icon">${c.icon}</div>
-            <div class="category-info">
-              <div class="category-name">${c.name}</div>
-              <div class="category-revenue">$${c.revenue.toLocaleString()}</div>
-            </div>
-            <div class="category-transactions">${c.transactions} sales</div>
-          </div>
-        `;
-      });
-      
-      container.innerHTML = html;
+      container.innerHTML = categories.map(c => '<div class="category-row"><div class="category-icon">' + c.icon + '</div><div class="category-info"><div class="category-name">' + c.name + '</div><div class="category-revenue">$' + c.revenue.toLocaleString() + '</div></div><div class="category-transactions">' + c.transactions + ' sales</div></div>').join('');
     }
 
-    // Initialize - load data from API
-    loadSalesData();
-
-    // Date range selector
-    function setDateRange(range) {
-      // Update button states
-      document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      
-      // TODO: In the future, pass range to API and re-fetch data
-      // For now, show a message
-      const rangeLabel = { week: '7 days', month: '30 days', quarter: '90 days', year: '365 days' }[range];
-      console.log(`Would fetch data for ${rangeLabel}`);
-      
-      // Re-generate insight based on range (placeholder - would come from API)
-      generateAIInsight();
+    function setDateRange(days) {
+      document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.date-btn[data-days="' + days + '"]').classList.add('active');
+      loadSalesData(days);
     }
+
+    loadSalesData(90);
   </script>
 </body>
 </html>

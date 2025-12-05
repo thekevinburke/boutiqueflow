@@ -1988,14 +1988,14 @@ async function runNightlySync() {
   }
 }
 
-// Get SalesIQ data (reads from cache)
+// Get SalesIQ data (queries database with date range)
 app.get('/api/sales/analysis', async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT data, synced_at FROM sales_cache WHERE cache_key = 'sales_analysis'`
-    );
+    const days = parseInt(req.query.days) || 90;
     
-    if (result.rows.length === 0) {
+    // Check if we have any data
+    const countResult = await pool.query('SELECT COUNT(*) FROM sales_transactions');
+    if (parseInt(countResult.rows[0].count) === 0) {
       return res.json({
         error: 'No sales data available',
         message: 'Please run a sync first',
@@ -2003,13 +2003,85 @@ app.get('/api/sales/analysis', async (req, res) => {
       });
     }
     
-    const { data, synced_at } = result.rows[0];
+    // Get last sync time
+    const syncResult = await pool.query(
+      `SELECT MAX(synced_at) as last_sync FROM sales_cache WHERE cache_key = 'sales_analysis'`
+    );
+    const syncedAt = syncResult.rows[0]?.last_sync;
+    
+    // Sales by day of week
+    const dayOfWeekResult = await pool.query(`
+      SELECT 
+        day_of_week,
+        COUNT(DISTINCT heartland_ticket_id) as transactions,
+        SUM(total_amount) as revenue
+      FROM sales_transactions
+      WHERE transaction_date >= NOW() - INTERVAL '${days} days'
+      GROUP BY day_of_week
+      ORDER BY day_of_week
+    `);
+    
+    // Sales by hour
+    const hourlyResult = await pool.query(`
+      SELECT 
+        hour_of_day,
+        AVG(total_amount) as avg_sale,
+        COUNT(*) as transaction_count
+      FROM sales_transactions
+      WHERE transaction_date >= NOW() - INTERVAL '${days} days'
+      GROUP BY hour_of_day
+      ORDER BY hour_of_day
+    `);
+    
+    // Category performance
+    const categoryResult = await pool.query(`
+      SELECT 
+        category,
+        SUM(total_amount) as revenue,
+        COUNT(*) as transactions
+      FROM sales_transactions
+      WHERE transaction_date >= NOW() - INTERVAL '${days} days'
+        AND category IS NOT NULL
+        AND category != 'Uncategorized'
+      GROUP BY category
+      ORDER BY revenue DESC
+      LIMIT 10
+    `);
+    
+    // Build the response
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dailySales = dayNames.map((day, idx) => {
+      const data = dayOfWeekResult.rows.find(r => r.day_of_week === idx);
+      return {
+        day,
+        revenue: Math.round(parseFloat(data?.revenue || 0)),
+        transactions: parseInt(data?.transactions || 0)
+      };
+    });
+    
+    const hourlyAvg = Array.from({length: 24}, (_, hour) => {
+      const data = hourlyResult.rows.find(r => r.hour_of_day === hour);
+      return {
+        hour: `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`,
+        avg: Math.round(parseFloat(data?.avg_sale || 0))
+      };
+    }).filter(h => h.avg > 0);
+    
+    const categories = categoryResult.rows.map(c => ({
+      name: c.category,
+      revenue: Math.round(parseFloat(c.revenue)),
+      transactions: parseInt(c.transactions)
+    }));
+    
     res.json({
-      ...data,
-      syncedAt: synced_at
+      dailySales,
+      hourlyAvg,
+      categories,
+      dateRange: days,
+      syncedAt
     });
   } catch (error) {
-    console.error('Error reading sales cache:', error);
+    console.error('Error reading sales data:', error);
     res.status(500).json({ error: error.message });
   }
 });
