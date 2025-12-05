@@ -827,23 +827,11 @@
       matchQueue.innerHTML = `
         <div style="padding: 40px; text-align: center; color: #666; background: white; border-radius: 12px;">
           <p style="font-size: 1.1rem; margin-bottom: 12px;">No customer matches available yet.</p>
-          <p style="font-size: 0.9rem; color: #888;">First Dibs requires synced customer data to match new arrivals with customers who love those brands.</p>
-          <button onclick="triggerSync()" style="margin-top: 16px; padding: 10px 20px; background: #e91e8a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
-            Sync Customer Data
-          </button>
+          <p style="font-size: 0.9rem; color: #888;">First Dibs requires synced customer data to match new arrivals with customers who love those brands. Data syncs automatically each night.</p>
         </div>
       `;
       matchCountEl.textContent = '0 VIPs ready to hear about new arrivals';
       document.getElementById('productsInfo').textContent = 'No recent receipts';
-    }
-
-    async function triggerSync() {
-      try {
-        await fetch('/api/sync/manual', { method: 'POST' });
-        alert('Sync started! This may take several minutes. Refresh the page in a few minutes to see customer matches.');
-      } catch (error) {
-        alert('Error starting sync: ' + error.message);
-      }
     }
 
     // Helpers
