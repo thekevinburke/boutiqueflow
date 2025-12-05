@@ -759,103 +759,16 @@
   </div>
 
   <script>
-    // State
-    let matches = [
-      {
-        id: 1,
-        customer: {
-          name: 'Sarah Mitchell',
-          email: 'sarah.m@email.com',
-          phone: '(555) 234-5678'
-        },
-        previousPurchase: {
-          item: 'Citizens of Humanity Emerson Slim Boyfriend Jean',
-          brand: 'Citizens of Humanity',
-          color: 'Agave',
-          size: '28',
-          date: '2025-10-18',
-          price: 228
-        },
-        newItem: {
-          name: 'Citizens of Humanity Emerson Slim Crop',
-          brand: 'Citizens of Humanity',
-          color: 'Oasis',
-          size: '28',
-          price: 238,
-          imageUrl: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=400&fit=crop'
-        },
-        daysSincePurchase: 47,
-        daysSinceContact: null,
-        draftMessage: "Hi Sarah! It's Kelly at The Boutique. We just got the new Citizens Emerson Crop in your size and I immediately thought of you. Want me to hold one? 💙",
-        matchStrength: 'strong',
-        itemStatus: 'ready'
-      },
-      {
-        id: 2,
-        customer: {
-          name: 'Jennifer Walsh',
-          email: 'jen.walsh@gmail.com',
-          phone: '(555) 876-5432'
-        },
-        previousPurchase: {
-          item: 'Zimmermann Cassia Floral Midi Dress',
-          brand: 'Zimmermann',
-          color: 'Blue Floral',
-          size: '2',
-          date: '2025-09-22',
-          price: 695
-        },
-        newItem: {
-          name: 'Zimmermann Luminosity Floral Linen Dress',
-          brand: 'Zimmermann',
-          color: 'Cream Floral',
-          size: '2',
-          price: 750,
-          imageUrl: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=400&h=400&fit=crop'
-        },
-        daysSincePurchase: 38,
-        daysSinceContact: 45,
-        draftMessage: "Hi Jennifer! Kelly here from The Boutique. A stunning new Zimmermann floral just arrived and it has your name written all over it. Shall I set it aside for you?",
-        matchStrength: 'strong',
-        itemStatus: 'pending'
-      },
-      {
-        id: 3,
-        customer: {
-          name: 'Amanda Chen',
-          email: 'achen@outlook.com',
-          phone: null
-        },
-        previousPurchase: {
-          item: 'Vince Wool-Cashmere Cardigan',
-          brand: 'Vince',
-          color: 'Heather Grey',
-          size: 'S',
-          date: '2025-08-10',
-          price: 385
-        },
-        newItem: {
-          name: 'Vince Boiled Cashmere Sweater',
-          brand: 'Vince',
-          color: 'Camel',
-          size: 'S',
-          price: 425,
-          imageUrl: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=400&h=400&fit=crop'
-        },
-        daysSincePurchase: 112,
-        daysSinceContact: 60,
-        draftMessage: "Hi Amanda, it's Kelly at The Boutique! A beautiful new Vince cashmere sweater just came in and I thought you might love it. Stop by when you have a chance—I'd love to show you!",
-        matchStrength: 'good',
-        itemStatus: 'ready'
-      }
-    ];
+    // State - will be populated from API
+    let matches = [];
+    let newItemCount = 0;
+    let isLoading = true;
 
     let selectedMatchId = null;
     let sentIds = [];
     let skippedIds = [];
     let matchLimit = 5;
-    const todaysProductCount = 12;
-    const suggestedLimit = todaysProductCount <= 5 ? 3 : todaysProductCount <= 15 ? 5 : 10;
+    let suggestedLimit = 5;
 
     // DOM Elements
     const matchQueue = document.getElementById('matchQueue');
@@ -866,8 +779,76 @@
     const sentSummary = document.getElementById('sentSummary');
     const sentCountEl = document.getElementById('sentCount');
 
+    // Fetch matches from API
+    async function loadMatches() {
+      try {
+        isLoading = true;
+        updateProductsInfo('Loading...');
+        
+        const response = await fetch('/api/first-dibs/matches?limit=30');
+        const data = await response.json();
+        
+        if (data.error) {
+          console.log('Error loading matches:', data.error);
+          showNoDataMessage();
+          return;
+        }
+        
+        matches = data.matches || [];
+        newItemCount = data.newItemCount || 0;
+        
+        // Update suggested limit based on new item count
+        suggestedLimit = newItemCount <= 5 ? 3 : newItemCount <= 15 ? 5 : 10;
+        
+        isLoading = false;
+        updateProductsInfo();
+        renderMatchQueue();
+        renderPreview();
+        updateResetButton();
+        
+      } catch (error) {
+        console.error('Error loading First Dibs matches:', error);
+        showNoDataMessage();
+      }
+    }
+
+    function updateProductsInfo(message) {
+      const productsInfoEl = document.getElementById('productsInfo');
+      if (message) {
+        productsInfoEl.textContent = message;
+      } else {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        productsInfoEl.textContent = `${newItemCount} items • Today at ${timeStr}`;
+      }
+    }
+
+    function showNoDataMessage() {
+      matchQueue.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #666; background: white; border-radius: 12px;">
+          <p style="font-size: 1.1rem; margin-bottom: 12px;">No customer matches available yet.</p>
+          <p style="font-size: 0.9rem; color: #888;">First Dibs requires synced customer data to match new arrivals with customers who love those brands.</p>
+          <button onclick="triggerSync()" style="margin-top: 16px; padding: 10px 20px; background: #e91e8a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+            Sync Customer Data
+          </button>
+        </div>
+      `;
+      matchCountEl.textContent = '0 VIPs ready to hear about new arrivals';
+      document.getElementById('productsInfo').textContent = 'No recent receipts';
+    }
+
+    async function triggerSync() {
+      try {
+        await fetch('/api/sync/manual', { method: 'POST' });
+        alert('Sync started! This may take several minutes. Refresh the page in a few minutes to see customer matches.');
+      } catch (error) {
+        alert('Error starting sync: ' + error.message);
+      }
+    }
+
     // Helpers
     function formatDate(dateStr) {
+      if (!dateStr) return 'Unknown';
       return new Date(dateStr).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -1109,10 +1090,8 @@
       renderMatchQueue();
     });
 
-    // Initial Render
-    renderMatchQueue();
-    renderPreview();
-    updateResetButton();
+    // Initial Load - fetch from API
+    loadMatches();
   </script>
 </body>
 </html>

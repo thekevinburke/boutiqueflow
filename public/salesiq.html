@@ -617,57 +617,196 @@
   </div>
 
   <script>
-    // Sample Data - will be replaced by API data when background sync is built
-    const dailySales = [
-      { day: 'Sun', revenue: 4280, transactions: 24, best: false },
-      { day: 'Mon', revenue: 3120, transactions: 19, best: false },
-      { day: 'Tue', revenue: 3840, transactions: 22, best: false },
-      { day: 'Wed', revenue: 4560, transactions: 28, best: false },
-      { day: 'Thu', revenue: 5120, transactions: 31, best: false },
-      { day: 'Fri', revenue: 6280, transactions: 38, best: false },
-      { day: 'Sat', revenue: 8640, transactions: 52, best: true }
-    ];
+    // State - will be populated from API
+    let dailySales = [];
+    let categories = [];
+    let heatmapData = { hours: [], days: [], values: [] };
+    let hourlyAvg = [];
+    let syncedAt = null;
+    let isLoading = true;
 
-    const categories = [
-      { name: 'Dresses', icon: '👗', revenue: 14280, change: 18 },
-      { name: 'Tops', icon: '👚', revenue: 9640, change: 5 },
-      { name: 'Bottoms', icon: '👖', revenue: 8920, change: -2 },
-      { name: 'Outerwear', icon: '🧥', revenue: 7240, change: 22 },
-      { name: 'Accessories', icon: '👜', revenue: 4820, change: 8 },
-      { name: 'Shoes', icon: '👠', revenue: 2380, change: -12 }
-    ];
-
-    // Hourly heatmap data (day x hour = avg sales)
-    const heatmapData = {
-      hours: ['10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm'],
-      days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-      values: [
-        [85, 120, 280, 320, 380, 420, 350, 280, 0],
-        [45, 95, 180, 220, 280, 320, 240, 180, 120],
-        [52, 110, 210, 260, 340, 380, 290, 210, 140],
-        [68, 125, 240, 290, 390, 450, 380, 260, 165],
-        [72, 135, 260, 310, 420, 480, 400, 290, 180],
-        [95, 160, 320, 380, 520, 580, 480, 360, 220],
-        [120, 180, 420, 480, 640, 720, 580, 420, 0]
-      ]
+    // Category icons mapping
+    const categoryIcons = {
+      'Dresses': '👗',
+      'Tops': '👚',
+      'Bottoms': '👖',
+      'Pants': '👖',
+      'Jeans': '👖',
+      'Outerwear': '🧥',
+      'Jackets': '🧥',
+      'Coats': '🧥',
+      'Accessories': '👜',
+      'Bags': '👜',
+      'Shoes': '👠',
+      'Jewelry': '💎',
+      'Sweaters': '🧶',
+      'Swimwear': '👙',
+      'Activewear': '🏃‍♀️',
+      'default': '🛍️'
     };
 
-    const hourlyAvg = [
-      { hour: '10am', avg: 76 },
-      { hour: '11am', avg: 132 },
-      { hour: '12pm', avg: 273 },
-      { hour: '1pm', avg: 323 },
-      { hour: '2pm', avg: 424 },
-      { hour: '3pm', avg: 479 },
-      { hour: '4pm', avg: 388 },
-      { hour: '5pm', avg: 286 },
-      { hour: '6pm', avg: 118 }
-    ];
+    function getCategoryIcon(name) {
+      return categoryIcons[name] || categoryIcons['default'];
+    }
+
+    // Fetch data from API
+    async function loadSalesData() {
+      try {
+        isLoading = true;
+        updateDataStatus('loading');
+        
+        const response = await fetch('/api/sales/analysis');
+        const data = await response.json();
+        
+        if (data.error) {
+          console.log('No sales data:', data.message);
+          updateDataStatus('no-data');
+          showNoDataMessage();
+          return;
+        }
+        
+        // Populate state from API response
+        dailySales = data.dailySales || [];
+        
+        // Mark the best day
+        if (dailySales.length > 0) {
+          const maxRevenue = Math.max(...dailySales.map(d => d.revenue));
+          dailySales = dailySales.map(d => ({
+            ...d,
+            best: d.revenue === maxRevenue && d.revenue > 0
+          }));
+        }
+        
+        // Process categories with icons
+        categories = (data.categories || []).map(c => ({
+          ...c,
+          icon: getCategoryIcon(c.name),
+          change: 0 // We'll add period-over-period comparison later
+        }));
+        
+        // Heatmap data
+        if (data.heatmap) {
+          heatmapData = data.heatmap;
+        }
+        
+        // Hourly averages
+        hourlyAvg = data.hourlyAvg || [];
+        
+        // Sync timestamp
+        syncedAt = data.syncedAt;
+        
+        isLoading = false;
+        updateDataStatus('live');
+        
+        // Render all charts
+        renderAll();
+        generateAIInsight();
+        
+      } catch (error) {
+        console.error('Error loading sales data:', error);
+        updateDataStatus('error');
+        showNoDataMessage();
+      }
+    }
+
+    function updateDataStatus(status) {
+      const statusEl = document.querySelector('.data-status');
+      const dotEl = document.querySelector('.data-status-dot');
+      
+      if (status === 'loading') {
+        dotEl.style.background = '#f59e0b';
+        statusEl.innerHTML = '<span class="data-status-dot" style="background: #f59e0b;"></span> Loading...';
+      } else if (status === 'live') {
+        dotEl.style.background = '#10b981';
+        const syncTime = syncedAt ? new Date(syncedAt).toLocaleDateString() : 'Unknown';
+        statusEl.innerHTML = `<span class="data-status-dot" style="background: #10b981;"></span> Live data (synced ${syncTime})`;
+      } else if (status === 'no-data') {
+        dotEl.style.background = '#ef4444';
+        statusEl.innerHTML = '<span class="data-status-dot" style="background: #ef4444;"></span> No data - run sync';
+      } else if (status === 'error') {
+        dotEl.style.background = '#ef4444';
+        statusEl.innerHTML = '<span class="data-status-dot" style="background: #ef4444;"></span> Error loading';
+      }
+    }
+
+    function showNoDataMessage() {
+      document.getElementById('dayGrid').innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #666;">
+          <p>No sales data available yet.</p>
+          <p style="font-size: 0.85rem; margin-top: 8px;">Sales data will be synced nightly, or you can trigger a manual sync.</p>
+          <button onclick="triggerSync()" style="margin-top: 16px; padding: 10px 20px; background: #e91e8a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+            Sync Now
+          </button>
+        </div>
+      `;
+      document.getElementById('categoryGrid').innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No category data</div>';
+      document.getElementById('hourlyBarChart').innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No hourly data</div>';
+      document.getElementById('heatmapGrid').innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No heatmap data</div>';
+    }
+
+    async function triggerSync() {
+      try {
+        updateDataStatus('loading');
+        await fetch('/api/sync/manual', { method: 'POST' });
+        alert('Sync started! This may take several minutes. Refresh the page in a few minutes to see updated data.');
+      } catch (error) {
+        alert('Error starting sync: ' + error.message);
+      }
+    }
+
+    function renderAll() {
+      renderHeatmap();
+      renderHourlyChart();
+      renderDayGrid();
+      renderCategoryGrid();
+    }
+
+    function generateAIInsight() {
+      if (dailySales.length === 0) {
+        document.getElementById('aiInsight').textContent = 'Sync sales data to see AI-powered insights about your sales patterns.';
+        return;
+      }
+      
+      // Find best day
+      const bestDay = dailySales.find(d => d.best);
+      const avgRevenue = dailySales.reduce((sum, d) => sum + d.revenue, 0) / dailySales.length;
+      const bestDayPct = bestDay ? Math.round((bestDay.revenue / avgRevenue - 1) * 100) : 0;
+      
+      // Find peak hours
+      const sortedHours = [...hourlyAvg].sort((a, b) => b.avg - a.avg);
+      const peakHours = sortedHours.slice(0, 3).map(h => h.hour).join(', ');
+      const slowestHour = sortedHours[sortedHours.length - 1];
+      
+      // Top category
+      const topCategory = categories[0]?.name || 'Unknown';
+      
+      let insight = '';
+      if (bestDay) {
+        insight = `${bestDay.day} is your strongest day with ${bestDayPct}% higher sales than average. `;
+      }
+      if (peakHours) {
+        insight += `Peak hours are ${peakHours}. `;
+      }
+      if (slowestHour && slowestHour.avg > 0) {
+        insight += `Your slowest hour is ${slowestHour.hour} averaging $${slowestHour.avg}. `;
+      }
+      if (topCategory) {
+        insight += `${topCategory} is your top-performing category.`;
+      }
+      
+      document.getElementById('aiInsight').textContent = insight || 'Analyzing your sales patterns...';
+    }
 
     // Render heatmap
     function renderHeatmap() {
       const grid = document.getElementById('heatmapGrid');
-      const maxVal = Math.max(...heatmapData.values.flat());
+      
+      if (!heatmapData.values || heatmapData.values.length === 0 || heatmapData.values.flat().every(v => v === 0)) {
+        grid.innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No heatmap data available</div>';
+        return;
+      }
+      
+      const maxVal = Math.max(...heatmapData.values.flat().filter(v => v > 0));
       
       let html = '<div class="heatmap-header-cell"></div>';
       heatmapData.hours.forEach(hour => {
@@ -694,11 +833,17 @@
     // Render hourly bar chart
     function renderHourlyChart() {
       const container = document.getElementById('hourlyBarChart');
+      
+      if (hourlyAvg.length === 0 || hourlyAvg.every(h => h.avg === 0)) {
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No hourly data available</div>';
+        return;
+      }
+      
       const maxAvg = Math.max(...hourlyAvg.map(h => h.avg));
       
       let html = '';
       hourlyAvg.forEach(h => {
-        const heightPct = (h.avg / maxAvg) * 100;
+        const heightPct = maxAvg > 0 ? (h.avg / maxAvg) * 100 : 0;
         let level = 'low';
         if (h.avg > maxAvg * 0.8) level = 'peak';
         else if (h.avg > maxAvg * 0.5) level = 'high';
@@ -719,11 +864,17 @@
     // Render day grid
     function renderDayGrid() {
       const container = document.getElementById('dayGrid');
+      
+      if (dailySales.length === 0 || dailySales.every(d => d.revenue === 0)) {
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No daily sales data available</div>';
+        return;
+      }
+      
       const maxRev = Math.max(...dailySales.map(d => d.revenue));
       
       let html = '';
       dailySales.forEach(d => {
-        const widthPct = (d.revenue / maxRev) * 100;
+        const widthPct = maxRev > 0 ? (d.revenue / maxRev) * 100 : 0;
         html += `
           <div class="time-row">
             <div class="time-label">${d.day}</div>
@@ -744,10 +895,13 @@
     function renderCategoryGrid() {
       const container = document.getElementById('categoryGrid');
       
+      if (categories.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No category data available</div>';
+        return;
+      }
+      
       let html = '';
       categories.forEach(c => {
-        const changeClass = c.change >= 0 ? 'up' : 'down';
-        const changeSymbol = c.change >= 0 ? '↑' : '↓';
         html += `
           <div class="category-row">
             <div class="category-icon">${c.icon}</div>
@@ -755,7 +909,7 @@
               <div class="category-name">${c.name}</div>
               <div class="category-revenue">$${c.revenue.toLocaleString()}</div>
             </div>
-            <div class="category-change ${changeClass}">${changeSymbol} ${Math.abs(c.change)}%</div>
+            <div class="category-transactions">${c.transactions} sales</div>
           </div>
         `;
       });
@@ -763,28 +917,22 @@
       container.innerHTML = html;
     }
 
-    // Initialize
-    renderHeatmap();
-    renderHourlyChart();
-    renderDayGrid();
-    renderCategoryGrid();
+    // Initialize - load data from API
+    loadSalesData();
 
-    // Date range selector (sample data for now)
+    // Date range selector
     function setDateRange(range) {
       // Update button states
       document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
       
-      // In the future, this will fetch data for the selected range
-      // For now, just show different sample insights
-      const insights = {
-        week: "This week, Thursday outperformed with 28% higher sales than last Thursday. Dresses category is up 15% week-over-week. Your busiest hour was Saturday 3pm with $720 in sales.",
-        month: "Saturday is your strongest day with 34% higher sales than weekday average. Peak hours are 2-5pm across all days. Consider adding staff during these peak windows and evaluating whether 10am opening is necessary — that hour averages only $82 in sales.",
-        quarter: "Over the past 3 months, Outerwear category grew 42% as temperatures dropped. Saturday consistently outperforms other days by 30%+. Your slowest month was October, strongest was November (holiday shopping boost).",
-        year: "Year-to-date, Dresses remains your top category at 31% of revenue. Saturday accounts for 24% of weekly sales on average. Peak selling season is October-December (48% of annual revenue)."
-      };
+      // TODO: In the future, pass range to API and re-fetch data
+      // For now, show a message
+      const rangeLabel = { week: '7 days', month: '30 days', quarter: '90 days', year: '365 days' }[range];
+      console.log(`Would fetch data for ${rangeLabel}`);
       
-      document.getElementById('aiInsight').textContent = insights[range] || insights.month;
+      // Re-generate insight based on range (placeholder - would come from API)
+      generateAIInsight();
     }
   </script>
 </body>

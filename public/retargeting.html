@@ -928,99 +928,95 @@
   </div>
 
   <script>
-    // Sample customer data
-    const customers = [
-      {
-        id: 1,
-        name: 'Sara Smith',
-        email: 'sara.smith@email.com',
-        phone: '(555) 234-5678',
-        lastPurchase: {
-          item: 'Free People Maxi Dress',
-          brand: 'Free People',
-          color: 'Ivory',
-          size: 'M',
-          date: '2025-08-15',
-          price: 168
-        },
-        totalPurchases: 12,
-        lifetimeValue: 2840,
-        daysSincePurchase: 112
-      },
-      {
-        id: 2,
-        name: 'Jennifer Martinez',
-        email: 'jmartinez@gmail.com',
-        phone: '(555) 876-5432',
-        lastPurchase: {
-          item: 'AG Jeans Prima Ankle',
-          brand: 'AG Jeans',
-          color: 'Dark Wash',
-          size: '28',
-          date: '2025-07-22',
-          price: 225
-        },
-        totalPurchases: 8,
-        lifetimeValue: 1920,
-        daysSincePurchase: 136
-      },
-      {
-        id: 3,
-        name: 'Emily Chen',
-        email: 'emily.chen@outlook.com',
-        phone: null,
-        lastPurchase: {
-          item: 'Veronica Beard Blazer',
-          brand: 'Veronica Beard',
-          color: 'Navy',
-          size: '4',
-          date: '2025-06-30',
-          price: 698
-        },
-        totalPurchases: 15,
-        lifetimeValue: 4250,
-        daysSincePurchase: 158
-      },
-      {
-        id: 4,
-        name: 'Rachel Thompson',
-        email: 'rthompson@yahoo.com',
-        phone: '(555) 345-6789',
-        lastPurchase: {
-          item: 'Mother Denim Weekender',
-          brand: 'Mother',
-          color: 'Faded Black',
-          size: '27',
-          date: '2025-08-28',
-          price: 248
-        },
-        totalPurchases: 6,
-        lifetimeValue: 1180,
-        daysSincePurchase: 99
-      },
-      {
-        id: 5,
-        name: 'Amanda Wilson',
-        email: null,
-        phone: '(555) 567-8901',
-        lastPurchase: {
-          item: 'Rails Button-Down Shirt',
-          brand: 'Rails',
-          color: 'White/Blue Stripe',
-          size: 'S',
-          date: '2025-09-01',
-          price: 158
-        },
-        totalPurchases: 4,
-        lifetimeValue: 620,
-        daysSincePurchase: 95
-      }
-    ];
+    // State - will be populated from API
+    let customers = [];
+    let totalLapsed = 0;
+    let isLoading = true;
+    let currentThreshold = 90;
 
     let selectedCustomerId = null;
     let sentIds = [];
     let skippedIds = [];
     let displayLimit = 5;
+
+    // Fetch customers from API
+    async function loadLapsedCustomers() {
+      try {
+        isLoading = true;
+        const threshold = document.getElementById('thresholdSelect').value || 90;
+        currentThreshold = parseInt(threshold);
+        
+        const response = await fetch(`/api/customers/lapsed?days=${threshold}&limit=50`);
+        const data = await response.json();
+        
+        if (data.error) {
+          console.log('Error loading customers:', data.error);
+          showNoDataMessage();
+          return;
+        }
+        
+        // Transform API data to match our UI format
+        customers = (data.customers || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+          lastPurchase: c.lastPurchase ? {
+            item: c.lastPurchase.item,
+            brand: c.lastPurchase.brand,
+            color: c.lastPurchase.color,
+            size: c.lastPurchase.size,
+            date: c.lastPurchase.date ? new Date(c.lastPurchase.date).toISOString().split('T')[0] : null,
+            price: c.lastPurchase.price
+          } : null,
+          totalPurchases: c.totalPurchases,
+          lifetimeValue: c.lifetimeValue,
+          daysSincePurchase: c.daysSincePurchase
+        }));
+        
+        totalLapsed = data.total || customers.length;
+        
+        isLoading = false;
+        updateStats();
+        renderCustomerQueue();
+        renderPreview();
+        
+      } catch (error) {
+        console.error('Error loading lapsed customers:', error);
+        showNoDataMessage();
+      }
+    }
+
+    function showNoDataMessage() {
+      document.getElementById('customerQueue').innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #666; background: white; border-radius: 12px;">
+          <p style="font-size: 1.1rem; margin-bottom: 12px;">No customer data available yet.</p>
+          <p style="font-size: 0.9rem; color: #888;">Customer data will be synced nightly from Heartland.</p>
+          <button onclick="triggerSync()" style="margin-top: 16px; padding: 10px 20px; background: #e91e8a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+            Sync Now
+          </button>
+        </div>
+      `;
+      // Update stats to zero
+      document.getElementById('statLapsed').textContent = '0';
+      document.getElementById('statQueued').textContent = '0';
+    }
+
+    async function triggerSync() {
+      try {
+        await fetch('/api/sync/manual', { method: 'POST' });
+        alert('Sync started! This may take several minutes. Refresh the page in a few minutes to see updated data.');
+      } catch (error) {
+        alert('Error starting sync: ' + error.message);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('statLapsed').textContent = totalLapsed;
+      document.getElementById('statQueued').textContent = customers.filter(c => 
+        !sentIds.includes(c.id) && !skippedIds.includes(c.id)
+      ).length;
+    }
 
     // DOM Elements
     const customerQueue = document.getElementById('customerQueue');
@@ -1218,6 +1214,7 @@
       } else {
         sentSummary.classList.add('hidden');
       }
+      updateStats();
     }
 
     // Actions
@@ -1234,6 +1231,7 @@
       }
       renderCustomerQueue();
       renderPreview();
+      updateStats();
     }
 
     function sendMessage(id) {
@@ -1271,13 +1269,12 @@
 
     // Event Listeners
     document.getElementById('thresholdSelect').addEventListener('change', (e) => {
-      // In real app, this would re-query customers based on threshold
-      console.log('Threshold changed to:', e.target.value);
+      // Re-query customers based on new threshold
+      loadLapsedCustomers();
     });
 
-    // Initial Render
-    renderCustomerQueue();
-    renderPreview();
+    // Initial Load - fetch from API
+    loadLapsedCustomers();
   </script>
 </body>
 </html>

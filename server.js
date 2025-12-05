@@ -42,6 +42,88 @@ async function initDatabase() {
       )
     `);
     
+    // Sales transactions table (foundation for SalesIQ, First Dibs, Retargeting)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sales_transactions (
+        id SERIAL PRIMARY KEY,
+        heartland_ticket_id VARCHAR(50) NOT NULL,
+        heartland_line_id VARCHAR(50),
+        customer_id VARCHAR(50),
+        item_id VARCHAR(50),
+        transaction_date TIMESTAMP NOT NULL,
+        day_of_week INTEGER,
+        hour_of_day INTEGER,
+        quantity INTEGER,
+        unit_price DECIMAL(10,2),
+        total_amount DECIMAL(10,2),
+        category VARCHAR(100),
+        vendor VARCHAR(100),
+        brand VARCHAR(100),
+        item_name VARCHAR(255),
+        item_size VARCHAR(50),
+        item_color VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(heartland_ticket_id, COALESCE(heartland_line_id, '0'))
+      )
+    `);
+    
+    // Create index for faster queries
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales_transactions(customer_id);
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_transactions(transaction_date);
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_sales_item ON sales_transactions(item_id);
+    `);
+    
+    // Customer profiles table (for First Dibs & Retargeting)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+        heartland_customer_id VARCHAR(50) UNIQUE NOT NULL,
+        first_name VARCHAR(100),
+        last_name VARCHAR(100),
+        email VARCHAR(255),
+        phone VARCHAR(50),
+        total_purchases INTEGER DEFAULT 0,
+        lifetime_value DECIMAL(10,2) DEFAULT 0,
+        first_purchase_date TIMESTAMP,
+        last_purchase_date TIMESTAMP,
+        avg_purchase_value DECIMAL(10,2),
+        preferred_brands TEXT,
+        preferred_sizes TEXT,
+        preferred_categories TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Sales cache table (pre-aggregated data for SalesIQ)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sales_cache (
+        id SERIAL PRIMARY KEY,
+        cache_key VARCHAR(50) UNIQUE NOT NULL,
+        data JSONB NOT NULL,
+        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Sync log for tracking/debugging
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sync_log (
+        id SERIAL PRIMARY KEY,
+        sync_type VARCHAR(50) NOT NULL,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP,
+        status VARCHAR(20) DEFAULT 'running',
+        records_processed INTEGER DEFAULT 0,
+        error_message TEXT,
+        duration_seconds INTEGER
+      )
+    `);
+    
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Error initializing database:', error);
@@ -1060,6 +1142,816 @@ app.post('/api/inventory/sync', async (req, res) => {
     });
   } catch (error) {
     console.error('Error syncing inventory:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// NIGHTLY SYNC SYSTEM - Sales, Customers, and Analytics
+// ============================================================
+
+// Sync secret key for cron job authentication
+const SYNC_SECRET = process.env.SYNC_SECRET || 'boutiqueflow-sync-2024';
+
+// Helper: Create sync log entry
+async function createSyncLog(syncType) {
+  const result = await pool.query(
+    `INSERT INTO sync_log (sync_type, status) VALUES ($1, 'running') RETURNING id`,
+    [syncType]
+  );
+  return result.rows[0].id;
+}
+
+// Helper: Update sync log
+async function updateSyncLog(logId, status, recordsProcessed, errorMessage = null) {
+  await pool.query(
+    `UPDATE sync_log 
+     SET status = $1, records_processed = $2, error_message = $3, 
+         completed_at = CURRENT_TIMESTAMP,
+         duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
+     WHERE id = $4`,
+    [status, recordsProcessed, errorMessage, logId]
+  );
+}
+
+// Helper: Fetch all pages from Heartland API
+async function fetchAllPages(endpoint, maxPages = 50) {
+  const allResults = [];
+  let page = 1;
+  let hasMore = true;
+  
+  while (hasMore && page <= maxPages) {
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const data = await heartlandRequest(`${endpoint}${separator}page=${page}&per_page=100`);
+    
+    if (data.results && data.results.length > 0) {
+      allResults.push(...data.results);
+      hasMore = data.results.length === 100; // If we got 100, there might be more
+      page++;
+    } else {
+      hasMore = false;
+    }
+  }
+  
+  return allResults;
+}
+
+// MAIN NIGHTLY SYNC - Fetches sales transactions and builds customer profiles
+app.post('/api/sync/nightly', async (req, res) => {
+  // Verify sync secret (for cron job security)
+  const providedKey = req.query.key || req.body.key;
+  if (providedKey !== SYNC_SECRET) {
+    return res.status(401).json({ error: 'Invalid sync key' });
+  }
+  
+  // Don't wait for sync to complete - return immediately
+  res.json({ message: 'Nightly sync started', status: 'running' });
+  
+  // Run sync in background
+  runNightlySync().catch(err => {
+    console.error('Nightly sync failed:', err);
+  });
+});
+
+// The actual sync logic (can be called from endpoint or worker)
+async function runNightlySync() {
+  const logId = await createSyncLog('nightly_full');
+  const startTime = Date.now();
+  let totalRecords = 0;
+  
+  try {
+    console.log('========== NIGHTLY SYNC STARTED ==========');
+    
+    // ========== STEP 1: Fetch Sales Tickets ==========
+    console.log('Step 1: Fetching sales tickets...');
+    const oneYearAgo = new Date(Date.now() - 365*24*60*60*1000).toISOString().split('T')[0];
+    
+    // Get all tickets from the past year
+    const tickets = await fetchAllPages(`/sales/tickets?_filter[created_at][$gte]=${oneYearAgo}`);
+    console.log(`Found ${tickets.length} tickets`);
+    
+    // ========== STEP 2: Process Each Ticket ==========
+    console.log('Step 2: Processing tickets and fetching line items...');
+    let processedTickets = 0;
+    let transactionCount = 0;
+    
+    // Process in batches to avoid overwhelming the API
+    const batchSize = 20;
+    for (let i = 0; i < tickets.length; i += batchSize) {
+      const batch = tickets.slice(i, i + batchSize);
+      
+      await Promise.all(batch.map(async (ticket) => {
+        try {
+          // Get ticket lines
+          const lines = await heartlandRequest(`/sales/tickets/${ticket.id}/lines?per_page=100`);
+          
+          for (const line of (lines.results || [])) {
+            if (!line.item_id) continue;
+            
+            // Get item details for category/brand info
+            let itemDetails = {};
+            try {
+              itemDetails = await heartlandRequest(`/items/${line.item_id}`);
+            } catch (e) {
+              // Item might be deleted, continue with partial data
+            }
+            
+            // Get vendor name
+            let vendorName = 'Unknown';
+            if (itemDetails.primary_vendor_id) {
+              vendorName = await getVendorName(itemDetails.primary_vendor_id);
+            }
+            
+            const transactionDate = new Date(ticket.created_at);
+            
+            // Upsert transaction
+            await pool.query(`
+              INSERT INTO sales_transactions 
+                (heartland_ticket_id, heartland_line_id, customer_id, item_id, 
+                 transaction_date, day_of_week, hour_of_day, quantity, unit_price, 
+                 total_amount, category, vendor, brand, item_name, item_size, item_color)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+              ON CONFLICT (heartland_ticket_id, COALESCE(heartland_line_id, '0'))
+              DO UPDATE SET
+                customer_id = EXCLUDED.customer_id,
+                quantity = EXCLUDED.quantity,
+                total_amount = EXCLUDED.total_amount
+            `, [
+              ticket.id.toString(),
+              line.id?.toString() || null,
+              ticket.customer_id?.toString() || null,
+              line.item_id?.toString(),
+              transactionDate,
+              transactionDate.getDay(), // 0=Sunday
+              transactionDate.getHours(),
+              line.qty || 1,
+              line.unit_price || 0,
+              line.total || 0,
+              itemDetails.custom?.category || itemDetails.custom?.Category || 'Uncategorized',
+              vendorName,
+              itemDetails.custom?.brand || itemDetails.custom?.Brand || vendorName,
+              itemDetails.description || 'Unknown Item',
+              itemDetails.custom?.size || itemDetails.custom?.Size || '',
+              itemDetails.custom?.color_name || itemDetails.custom?.Color_Name || ''
+            ]);
+            
+            transactionCount++;
+          }
+        } catch (e) {
+          console.error(`Error processing ticket ${ticket.id}:`, e.message);
+        }
+      }));
+      
+      processedTickets += batch.length;
+      if (processedTickets % 100 === 0) {
+        console.log(`Processed ${processedTickets}/${tickets.length} tickets...`);
+      }
+    }
+    
+    console.log(`Inserted/updated ${transactionCount} transactions`);
+    totalRecords += transactionCount;
+    
+    // ========== STEP 3: Build Customer Profiles ==========
+    console.log('Step 3: Building customer profiles...');
+    
+    // Get all customers from Heartland
+    const heartlandCustomers = await fetchAllPages('/customers');
+    console.log(`Found ${heartlandCustomers.length} customers in Heartland`);
+    
+    // Process each customer with aggregated purchase data
+    let customerCount = 0;
+    for (const cust of heartlandCustomers) {
+      if (!cust.id) continue;
+      
+      // Get aggregated stats from our transactions
+      const statsResult = await pool.query(`
+        SELECT 
+          COUNT(*) as total_purchases,
+          SUM(total_amount) as lifetime_value,
+          AVG(total_amount) as avg_purchase,
+          MIN(transaction_date) as first_purchase,
+          MAX(transaction_date) as last_purchase
+        FROM sales_transactions
+        WHERE customer_id = $1
+      `, [cust.id.toString()]);
+      
+      const stats = statsResult.rows[0];
+      
+      // Get preferred brands (top 5)
+      const brandsResult = await pool.query(`
+        SELECT brand, COUNT(*) as cnt
+        FROM sales_transactions
+        WHERE customer_id = $1 AND brand IS NOT NULL AND brand != ''
+        GROUP BY brand
+        ORDER BY cnt DESC
+        LIMIT 5
+      `, [cust.id.toString()]);
+      
+      // Get sizes purchased
+      const sizesResult = await pool.query(`
+        SELECT DISTINCT item_size
+        FROM sales_transactions
+        WHERE customer_id = $1 AND item_size IS NOT NULL AND item_size != ''
+      `, [cust.id.toString()]);
+      
+      // Get preferred categories (top 5)
+      const categoriesResult = await pool.query(`
+        SELECT category, COUNT(*) as cnt
+        FROM sales_transactions
+        WHERE customer_id = $1 AND category IS NOT NULL AND category != 'Uncategorized'
+        GROUP BY category
+        ORDER BY cnt DESC
+        LIMIT 5
+      `, [cust.id.toString()]);
+      
+      // Upsert customer profile
+      await pool.query(`
+        INSERT INTO customers 
+          (heartland_customer_id, first_name, last_name, email, phone,
+           total_purchases, lifetime_value, first_purchase_date, last_purchase_date,
+           avg_purchase_value, preferred_brands, preferred_sizes, preferred_categories)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ON CONFLICT (heartland_customer_id)
+        DO UPDATE SET
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name,
+          email = EXCLUDED.email,
+          phone = EXCLUDED.phone,
+          total_purchases = EXCLUDED.total_purchases,
+          lifetime_value = EXCLUDED.lifetime_value,
+          first_purchase_date = EXCLUDED.first_purchase_date,
+          last_purchase_date = EXCLUDED.last_purchase_date,
+          avg_purchase_value = EXCLUDED.avg_purchase_value,
+          preferred_brands = EXCLUDED.preferred_brands,
+          preferred_sizes = EXCLUDED.preferred_sizes,
+          preferred_categories = EXCLUDED.preferred_categories,
+          updated_at = CURRENT_TIMESTAMP
+      `, [
+        cust.id.toString(),
+        cust.first_name || '',
+        cust.last_name || '',
+        cust.email || cust.emails?.[0]?.address || null,
+        cust.phone || cust.phones?.[0]?.number || null,
+        parseInt(stats.total_purchases) || 0,
+        parseFloat(stats.lifetime_value) || 0,
+        stats.first_purchase || null,
+        stats.last_purchase || null,
+        parseFloat(stats.avg_purchase) || 0,
+        JSON.stringify(brandsResult.rows.map(r => r.brand)),
+        JSON.stringify(sizesResult.rows.map(r => r.item_size)),
+        JSON.stringify(categoriesResult.rows.map(r => r.category))
+      ]);
+      
+      customerCount++;
+      if (customerCount % 100 === 0) {
+        console.log(`Processed ${customerCount}/${heartlandCustomers.length} customers...`);
+      }
+    }
+    
+    console.log(`Updated ${customerCount} customer profiles`);
+    totalRecords += customerCount;
+    
+    // ========== STEP 4: Aggregate SalesIQ Data ==========
+    console.log('Step 4: Aggregating SalesIQ data...');
+    
+    // Sales by day of week
+    const dayOfWeekResult = await pool.query(`
+      SELECT 
+        day_of_week,
+        COUNT(DISTINCT heartland_ticket_id) as transactions,
+        SUM(total_amount) as revenue
+      FROM sales_transactions
+      WHERE transaction_date >= NOW() - INTERVAL '90 days'
+      GROUP BY day_of_week
+      ORDER BY day_of_week
+    `);
+    
+    // Sales by hour
+    const hourlyResult = await pool.query(`
+      SELECT 
+        hour_of_day,
+        AVG(total_amount) as avg_sale,
+        COUNT(*) as transaction_count
+      FROM sales_transactions
+      WHERE transaction_date >= NOW() - INTERVAL '90 days'
+      GROUP BY hour_of_day
+      ORDER BY hour_of_day
+    `);
+    
+    // Day/Hour heatmap
+    const heatmapResult = await pool.query(`
+      SELECT 
+        day_of_week,
+        hour_of_day,
+        SUM(total_amount) as revenue
+      FROM sales_transactions
+      WHERE transaction_date >= NOW() - INTERVAL '90 days'
+      GROUP BY day_of_week, hour_of_day
+      ORDER BY day_of_week, hour_of_day
+    `);
+    
+    // Category performance
+    const categoryResult = await pool.query(`
+      SELECT 
+        category,
+        SUM(total_amount) as revenue,
+        COUNT(*) as transactions
+      FROM sales_transactions
+      WHERE transaction_date >= NOW() - INTERVAL '90 days'
+        AND category != 'Uncategorized'
+      GROUP BY category
+      ORDER BY revenue DESC
+      LIMIT 10
+    `);
+    
+    // Build the cache data
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const salesData = {
+      dailySales: dayNames.map((day, idx) => {
+        const data = dayOfWeekResult.rows.find(r => r.day_of_week === idx);
+        return {
+          day,
+          revenue: Math.round(parseFloat(data?.revenue || 0)),
+          transactions: parseInt(data?.transactions || 0)
+        };
+      }),
+      hourlyAvg: Array.from({length: 24}, (_, hour) => {
+        const data = hourlyResult.rows.find(r => r.hour_of_day === hour);
+        return {
+          hour: `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`,
+          avg: Math.round(parseFloat(data?.avg_sale || 0))
+        };
+      }).filter(h => h.avg > 0), // Only include hours with sales
+      heatmap: {
+        days: dayNames,
+        hours: Array.from({length: 12}, (_, i) => `${(i + 10) % 12 || 12}${(i + 10) < 12 ? 'am' : 'pm'}`), // 10am-9pm typical retail
+        values: dayNames.map((_, dayIdx) => {
+          return Array.from({length: 12}, (_, hourOffset) => {
+            const hour = hourOffset + 10; // Start at 10am
+            const data = heatmapResult.rows.find(r => r.day_of_week === dayIdx && r.hour_of_day === hour);
+            return Math.round(parseFloat(data?.revenue || 0));
+          });
+        })
+      },
+      categories: categoryResult.rows.map(r => ({
+        name: r.category,
+        revenue: Math.round(parseFloat(r.revenue)),
+        transactions: parseInt(r.transactions)
+      }))
+    };
+    
+    // Save to cache
+    await pool.query(`
+      INSERT INTO sales_cache (cache_key, data, synced_at)
+      VALUES ('sales_analysis', $1, CURRENT_TIMESTAMP)
+      ON CONFLICT (cache_key)
+      DO UPDATE SET data = $1, synced_at = CURRENT_TIMESTAMP
+    `, [JSON.stringify(salesData)]);
+    
+    console.log('SalesIQ data cached');
+    
+    // ========== STEP 5: Complete ==========
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    console.log(`========== NIGHTLY SYNC COMPLETE in ${duration}s ==========`);
+    console.log(`Total records processed: ${totalRecords}`);
+    
+    await updateSyncLog(logId, 'completed', totalRecords);
+    
+    return { success: true, duration, totalRecords };
+    
+  } catch (error) {
+    console.error('Nightly sync error:', error);
+    await updateSyncLog(logId, 'failed', totalRecords, error.message);
+    throw error;
+  }
+}
+
+// Get SalesIQ data (reads from cache)
+app.get('/api/sales/analysis', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT data, synced_at FROM sales_cache WHERE cache_key = 'sales_analysis'`
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({
+        error: 'No sales data available',
+        message: 'Please run a sync first',
+        syncedAt: null
+      });
+    }
+    
+    const { data, synced_at } = result.rows[0];
+    res.json({
+      ...data,
+      syncedAt: synced_at
+    });
+  } catch (error) {
+    console.error('Error reading sales cache:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get lapsed customers for Retargeting
+app.get('/api/customers/lapsed', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 90;
+    const limit = parseInt(req.query.limit) || 50;
+    
+    const result = await pool.query(`
+      SELECT 
+        heartland_customer_id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        total_purchases,
+        lifetime_value,
+        last_purchase_date,
+        EXTRACT(DAY FROM NOW() - last_purchase_date)::INTEGER as days_since_purchase
+      FROM customers
+      WHERE last_purchase_date IS NOT NULL
+        AND last_purchase_date < NOW() - INTERVAL '1 day' * $1
+        AND (email IS NOT NULL OR phone IS NOT NULL)
+      ORDER BY lifetime_value DESC
+      LIMIT $2
+    `, [days, limit]);
+    
+    // Get last purchase details for each customer
+    const customers = [];
+    for (const cust of result.rows) {
+      const lastPurchaseResult = await pool.query(`
+        SELECT item_name, brand, item_color, item_size, total_amount, transaction_date
+        FROM sales_transactions
+        WHERE customer_id = $1
+        ORDER BY transaction_date DESC
+        LIMIT 1
+      `, [cust.heartland_customer_id]);
+      
+      const lastPurchase = lastPurchaseResult.rows[0];
+      
+      customers.push({
+        id: cust.heartland_customer_id,
+        name: `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || 'Unknown Customer',
+        email: cust.email,
+        phone: cust.phone,
+        totalPurchases: cust.total_purchases,
+        lifetimeValue: parseFloat(cust.lifetime_value),
+        daysSincePurchase: cust.days_since_purchase,
+        lastPurchase: lastPurchase ? {
+          item: lastPurchase.item_name,
+          brand: lastPurchase.brand,
+          color: lastPurchase.item_color,
+          size: lastPurchase.item_size,
+          price: parseFloat(lastPurchase.total_amount),
+          date: lastPurchase.transaction_date
+        } : null
+      });
+    }
+    
+    // Get total lapsed count for stats
+    const countResult = await pool.query(`
+      SELECT COUNT(*) as total
+      FROM customers
+      WHERE last_purchase_date IS NOT NULL
+        AND last_purchase_date < NOW() - INTERVAL '1 day' * $1
+        AND (email IS NOT NULL OR phone IS NOT NULL)
+    `, [days]);
+    
+    res.json({
+      customers,
+      total: parseInt(countResult.rows[0].total),
+      threshold: days
+    });
+  } catch (error) {
+    console.error('Error fetching lapsed customers:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get customer matches for First Dibs (based on new inventory)
+app.get('/api/customers/match', async (req, res) => {
+  try {
+    const { brand, category, size } = req.query;
+    const limit = parseInt(req.query.limit) || 20;
+    
+    if (!brand && !category) {
+      return res.status(400).json({ error: 'At least brand or category required' });
+    }
+    
+    // Build query to find customers who have purchased similar items
+    let query = `
+      SELECT DISTINCT ON (c.heartland_customer_id)
+        c.heartland_customer_id,
+        c.first_name,
+        c.last_name,
+        c.email,
+        c.phone,
+        c.total_purchases,
+        c.lifetime_value,
+        c.last_purchase_date,
+        c.preferred_brands,
+        c.preferred_sizes,
+        EXTRACT(DAY FROM NOW() - c.last_purchase_date)::INTEGER as days_since_purchase
+      FROM customers c
+      INNER JOIN sales_transactions st ON st.customer_id = c.heartland_customer_id
+      WHERE (c.email IS NOT NULL OR c.phone IS NOT NULL)
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+    
+    if (brand) {
+      query += ` AND (st.brand = $${paramIndex} OR c.preferred_brands LIKE $${paramIndex + 1})`;
+      params.push(brand, `%${brand}%`);
+      paramIndex += 2;
+    }
+    
+    if (category) {
+      query += ` AND (st.category = $${paramIndex} OR c.preferred_categories LIKE $${paramIndex + 1})`;
+      params.push(category, `%${category}%`);
+      paramIndex += 2;
+    }
+    
+    if (size) {
+      query += ` AND (st.item_size = $${paramIndex} OR c.preferred_sizes LIKE $${paramIndex + 1})`;
+      params.push(size, `%${size}%`);
+      paramIndex += 2;
+    }
+    
+    query += ` ORDER BY c.heartland_customer_id, c.lifetime_value DESC LIMIT $${paramIndex}`;
+    params.push(limit);
+    
+    const result = await pool.query(query, params);
+    
+    // Get previous purchase of matched item for each customer
+    const customers = [];
+    for (const cust of result.rows) {
+      let previousPurchaseQuery = `
+        SELECT item_name, brand, item_color, item_size, total_amount, transaction_date
+        FROM sales_transactions
+        WHERE customer_id = $1
+      `;
+      const purchaseParams = [cust.heartland_customer_id];
+      
+      if (brand) {
+        previousPurchaseQuery += ` AND brand = $2`;
+        purchaseParams.push(brand);
+      }
+      
+      previousPurchaseQuery += ` ORDER BY transaction_date DESC LIMIT 1`;
+      
+      const prevPurchaseResult = await pool.query(previousPurchaseQuery, purchaseParams);
+      const prevPurchase = prevPurchaseResult.rows[0];
+      
+      customers.push({
+        id: cust.heartland_customer_id,
+        name: `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || 'Unknown Customer',
+        email: cust.email,
+        phone: cust.phone,
+        daysSincePurchase: cust.days_since_purchase,
+        previousPurchase: prevPurchase ? {
+          item: prevPurchase.item_name,
+          brand: prevPurchase.brand,
+          color: prevPurchase.item_color,
+          size: prevPurchase.item_size,
+          price: parseFloat(prevPurchase.total_amount),
+          date: prevPurchase.transaction_date
+        } : null
+      });
+    }
+    
+    res.json({ customers });
+  } catch (error) {
+    console.error('Error matching customers:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get First Dibs matches - new arrivals matched to customers
+app.get('/api/first-dibs/matches', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+    const daysBack = parseInt(req.query.days) || 7; // Look at receipts from last 7 days
+    
+    // Step 1: Get recent receipt items (new arrivals)
+    const dateFilter = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const receipts = await heartlandRequest(
+      `/purchasing/receipts?per_page=20&_filter[created_at][$gte]=${dateFilter}&_filter[status]=complete&sort[]=updated_at,desc`
+    );
+    
+    if (!receipts.results || receipts.results.length === 0) {
+      return res.json({ 
+        matches: [], 
+        newItemCount: 0,
+        message: 'No recent receipts found' 
+      });
+    }
+    
+    // Step 2: Get unique items from recent receipts with their details
+    const newItems = [];
+    const seenGrids = new Set();
+    
+    for (const receipt of receipts.results.slice(0, 10)) { // Limit to 10 most recent receipts
+      try {
+        const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=50`);
+        
+        for (const line of (lines.results || []).slice(0, 20)) {
+          if (!line.item_id) continue;
+          
+          try {
+            const item = await heartlandRequest(`/items/${line.item_id}`);
+            
+            // Skip if we've already processed this grid
+            if (item.grid_id && seenGrids.has(item.grid_id)) continue;
+            if (item.grid_id) seenGrids.add(item.grid_id);
+            
+            const brand = item.custom?.brand || item.custom?.Brand || '';
+            const category = item.custom?.category || item.custom?.Category || '';
+            const size = item.custom?.size || item.custom?.Size || '';
+            
+            // Only include items with brand info (needed for matching)
+            if (!brand) continue;
+            
+            let vendorName = brand;
+            if (item.primary_vendor_id) {
+              vendorName = await getVendorName(item.primary_vendor_id);
+            }
+            
+            newItems.push({
+              id: item.grid_id || item.id,
+              name: item.custom?.style_name || item.description || 'Unknown Item',
+              brand: vendorName,
+              category: category,
+              color: item.custom?.color_name || item.custom?.Color_Name || '',
+              size: size,
+              price: item.price || 0,
+              receiptDate: receipt.created_at,
+              itemId: item.id
+            });
+            
+            if (newItems.length >= 30) break; // Limit items to process
+          } catch (e) {
+            // Skip items that can't be fetched
+          }
+        }
+        
+        if (newItems.length >= 30) break;
+      } catch (e) {
+        console.error(`Error fetching receipt ${receipt.id} lines:`, e.message);
+      }
+    }
+    
+    // Step 3: For each new item, find matching customers
+    const matches = [];
+    
+    for (const item of newItems) {
+      // Find customers who have bought this brand before
+      const customerResult = await pool.query(`
+        SELECT DISTINCT ON (c.heartland_customer_id)
+          c.heartland_customer_id,
+          c.first_name,
+          c.last_name,
+          c.email,
+          c.phone,
+          c.lifetime_value,
+          EXTRACT(DAY FROM NOW() - c.last_purchase_date)::INTEGER as days_since_purchase
+        FROM customers c
+        INNER JOIN sales_transactions st ON st.customer_id = c.heartland_customer_id
+        WHERE (c.email IS NOT NULL OR c.phone IS NOT NULL)
+          AND st.brand = $1
+        ORDER BY c.heartland_customer_id, c.lifetime_value DESC
+        LIMIT 5
+      `, [item.brand]);
+      
+      for (const cust of customerResult.rows) {
+        // Get customer's previous purchase of this brand
+        const prevPurchaseResult = await pool.query(`
+          SELECT item_name, brand, item_color, item_size, total_amount, transaction_date
+          FROM sales_transactions
+          WHERE customer_id = $1 AND brand = $2
+          ORDER BY transaction_date DESC
+          LIMIT 1
+        `, [cust.heartland_customer_id, item.brand]);
+        
+        const prevPurchase = prevPurchaseResult.rows[0];
+        if (!prevPurchase) continue;
+        
+        // Calculate match strength
+        let matchStrength = 'good';
+        const sizeMatch = prevPurchase.item_size === item.size;
+        if (sizeMatch && cust.days_since_purchase < 90) {
+          matchStrength = 'strong';
+        }
+        
+        // Generate draft message
+        const firstName = cust.first_name || 'there';
+        const draftMessage = `Hi ${firstName}! It's Kelly at The Boutique. We just got the new ${item.brand} ${item.name} and I immediately thought of you based on your love of ${item.brand}. Want me to hold one for you? 💙`;
+        
+        matches.push({
+          id: `${item.id}-${cust.heartland_customer_id}`,
+          customer: {
+            id: cust.heartland_customer_id,
+            name: `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || 'Unknown Customer',
+            email: cust.email,
+            phone: cust.phone
+          },
+          previousPurchase: {
+            item: prevPurchase.item_name,
+            brand: prevPurchase.brand,
+            color: prevPurchase.item_color,
+            size: prevPurchase.item_size,
+            date: prevPurchase.transaction_date ? new Date(prevPurchase.transaction_date).toISOString().split('T')[0] : null,
+            price: parseFloat(prevPurchase.total_amount)
+          },
+          newItem: {
+            name: item.name,
+            brand: item.brand,
+            color: item.color,
+            size: item.size,
+            price: item.price,
+            imageUrl: null // Would need Shopify integration for images
+          },
+          daysSincePurchase: cust.days_since_purchase,
+          daysSinceContact: null,
+          draftMessage: draftMessage,
+          matchStrength: matchStrength,
+          itemStatus: 'ready'
+        });
+        
+        if (matches.length >= limit) break;
+      }
+      
+      if (matches.length >= limit) break;
+    }
+    
+    // Sort by match strength (strong first) then by days since purchase
+    matches.sort((a, b) => {
+      if (a.matchStrength === 'strong' && b.matchStrength !== 'strong') return -1;
+      if (b.matchStrength === 'strong' && a.matchStrength !== 'strong') return 1;
+      return (a.daysSincePurchase || 999) - (b.daysSincePurchase || 999);
+    });
+    
+    res.json({
+      matches: matches.slice(0, limit),
+      newItemCount: newItems.length,
+      receiptCount: receipts.results.length
+    });
+    
+  } catch (error) {
+    console.error('Error getting First Dibs matches:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get sync status
+app.get('/api/sync/status', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM sync_log 
+      ORDER BY started_at DESC 
+      LIMIT 10
+    `);
+    
+    // Get data freshness
+    const salesCache = await pool.query(
+      `SELECT synced_at FROM sales_cache WHERE cache_key = 'sales_analysis'`
+    );
+    const inventoryCache = await pool.query(
+      `SELECT synced_at FROM inventory_cache WHERE cache_key = 'inventory_analysis'`
+    );
+    
+    // Get record counts
+    const counts = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM sales_transactions) as transactions,
+        (SELECT COUNT(*) FROM customers) as customers
+    `);
+    
+    res.json({
+      recentSyncs: result.rows,
+      dataFreshness: {
+        sales: salesCache.rows[0]?.synced_at || null,
+        inventory: inventoryCache.rows[0]?.synced_at || null
+      },
+      recordCounts: counts.rows[0]
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual sync trigger (for testing - requires auth)
+app.post('/api/sync/manual', async (req, res) => {
+  try {
+    res.json({ message: 'Manual sync started', status: 'running' });
+    
+    // Run sync in background
+    runNightlySync().catch(err => {
+      console.error('Manual sync failed:', err);
+    });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
