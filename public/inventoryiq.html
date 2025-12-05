@@ -63,19 +63,6 @@
       letter-spacing: 0.5px;
     }
 
-    .nav-breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.9rem;
-      color: #666;
-    }
-
-    .nav-breadcrumb a {
-      color: #007bff;
-      text-decoration: none;
-    }
-
     .container {
       max-width: 1200px;
       margin: 0 auto;
@@ -116,6 +103,141 @@
     .page-subtitle {
       color: #666;
       margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sync-btn {
+      padding: 10px 20px;
+      background: #e91e8a;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .sync-btn:hover {
+      background: #d1177b;
+    }
+
+    .sync-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .sync-status {
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .sync-status.success {
+      color: #059669;
+    }
+
+    /* Velocity Section */
+    .velocity-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .velocity-section {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .velocity-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .velocity-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #222;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .velocity-title-icon {
+      font-size: 1.25rem;
+    }
+
+    .velocity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .velocity-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .velocity-rank {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #666;
+    }
+
+    .velocity-rank.fast {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .velocity-rank.slow {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .velocity-info {
+      flex: 1;
+    }
+
+    .velocity-name {
+      font-weight: 500;
+      color: #222;
+      font-size: 0.9rem;
+    }
+
+    .velocity-meta {
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    .velocity-days {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #222;
+    }
+
+    .velocity-days.fast {
+      color: #059669;
+    }
+
+    .velocity-days.slow {
+      color: #dc2626;
     }
 
     /* Stats Row */
@@ -296,6 +418,7 @@
 
     .empty-state p {
       color: #888;
+      margin-bottom: 16px;
     }
 
     .empty-state .icon {
@@ -331,27 +454,15 @@
       border-color: #e91e8a;
     }
 
-    /* Responsive */
-    @media (max-width: 768px) {
-      .stats-row {
-        grid-template-columns: 1fr;
-      }
-
-      .nav-links {
-        display: none;
-      }
-
-      .table-header, .table-row {
-        font-size: 0.75rem;
-        grid-template-columns: 1.5fr 1fr 80px 100px;
-      }
-
-      .table-header > div:nth-child(3),
-      .table-header > div:nth-child(4),
-      .table-row > div:nth-child(3),
-      .table-row > div:nth-child(4) {
-        display: none;
-      }
+    /* Section Title */
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #222;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
   </style>
 </head>
@@ -375,9 +486,38 @@
           <h1 class="page-title">InventoryIQ</h1>
           <span class="pro-badge">PRO</span>
         </div>
-        <p class="page-subtitle">Identify slow-moving inventory that needs markdowns</p>
+        <p class="page-subtitle">Inventory velocity and slow-moving stock analysis</p>
+      </div>
+      <div class="header-actions">
+        <div class="sync-status" id="syncStatus">Last synced: Never</div>
+        <button class="sync-btn" onclick="runSync()" id="syncBtn">🔄 Sync Data</button>
       </div>
     </div>
+
+    <!-- Velocity Section -->
+    <div class="velocity-section">
+      <div class="velocity-card">
+        <div class="velocity-title">
+          <span class="velocity-title-icon">📦</span>
+          Sell-Through by Category
+        </div>
+        <div class="velocity-list" id="categoryVelocity">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+      <div class="velocity-card">
+        <div class="velocity-title">
+          <span class="velocity-title-icon">🏷️</span>
+          Sell-Through by Vendor
+        </div>
+        <div class="velocity-list" id="vendorVelocity">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dead Stock Section -->
+    <h2 class="section-title">🐌 Slow-Moving Inventory</h2>
 
     <!-- Stats Row -->
     <div class="stats-row">
@@ -420,48 +560,130 @@
       <div id="tableBody">
         <div class="loading">
           <div class="spinner"></div>
-          <p>Loading dead stock data...</p>
-          <p style="font-size: 0.85rem; margin-top: 8px; color: #999;">This may take a minute as we analyze your inventory</p>
+          <p>Loading inventory data...</p>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    let allItems = [];
+    let inventoryData = null;
     let currentFilter = 'all';
 
-    async function loadDeadStock() {
+    async function loadData() {
       try {
-        const response = await fetch('/api/inventory/dead-stock');
+        const response = await fetch('/api/inventory/data');
         const data = await response.json();
         
-        if (data.error) {
-          throw new Error(data.error);
+        if (data.error === 'No data yet') {
+          showNoData();
+          return;
         }
         
-        // Update summary cards
-        document.getElementById('count60').textContent = data.summary.items60Days;
-        document.getElementById('count90').textContent = data.summary.items90Days;
-        document.getElementById('count120').textContent = data.summary.items120Days;
+        inventoryData = data;
         
-        document.getElementById('value60').textContent = '$' + data.summary.value60Days.toLocaleString() + ' tied up';
-        document.getElementById('value90').textContent = '$' + data.summary.value90Days.toLocaleString() + ' tied up';
-        document.getElementById('value120').textContent = '$' + data.summary.value120Days.toLocaleString() + ' tied up';
+        // Update sync status
+        if (data.syncedAt) {
+          const syncDate = new Date(data.syncedAt);
+          document.getElementById('syncStatus').textContent = `Last synced: ${syncDate.toLocaleDateString()} ${syncDate.toLocaleTimeString()}`;
+          document.getElementById('syncStatus').classList.add('success');
+        }
         
-        allItems = data.items;
-        renderTable();
+        renderVelocity();
+        renderDeadStock();
         
       } catch (error) {
-        console.error('Error loading dead stock:', error);
-        document.getElementById('tableBody').innerHTML = `
-          <div class="empty-state">
-            <div class="icon">⚠️</div>
-            <h3>Error loading data</h3>
-            <p>${error.message}</p>
+        console.error('Error loading data:', error);
+        showError(error.message);
+      }
+    }
+
+    function showNoData() {
+      document.getElementById('categoryVelocity').innerHTML = `
+        <div class="empty-state">
+          <p>No data yet. Click "Sync Data" to analyze your inventory.</p>
+        </div>
+      `;
+      document.getElementById('vendorVelocity').innerHTML = `
+        <div class="empty-state">
+          <p>No data yet. Click "Sync Data" to analyze your inventory.</p>
+        </div>
+      `;
+      document.getElementById('tableBody').innerHTML = `
+        <div class="empty-state">
+          <div class="icon">📊</div>
+          <h3>No inventory data yet</h3>
+          <p>Click the "Sync Data" button to analyze your inventory from Heartland.</p>
+          <p style="font-size: 0.85rem; color: #999;">This may take 1-2 minutes on first sync.</p>
+        </div>
+      `;
+    }
+
+    function showError(message) {
+      document.getElementById('tableBody').innerHTML = `
+        <div class="empty-state">
+          <div class="icon">⚠️</div>
+          <h3>Error loading data</h3>
+          <p>${message}</p>
+        </div>
+      `;
+    }
+
+    function renderVelocity() {
+      if (!inventoryData?.velocity) return;
+      
+      // Category velocity
+      const categoryHtml = inventoryData.velocity.byCategory.slice(0, 6).map((cat, i) => {
+        const speedClass = cat.avgDaysToSell <= 30 ? 'fast' : cat.avgDaysToSell >= 60 ? 'slow' : '';
+        const rankClass = i < 2 ? 'fast' : i >= 4 ? 'slow' : '';
+        return `
+          <div class="velocity-item">
+            <div class="velocity-rank ${rankClass}">${i + 1}</div>
+            <div class="velocity-info">
+              <div class="velocity-name">${cat.name}</div>
+              <div class="velocity-meta">${cat.itemsSold} items sold</div>
+            </div>
+            <div class="velocity-days ${speedClass}">${cat.avgDaysToSell} days</div>
           </div>
         `;
-      }
+      }).join('');
+      
+      document.getElementById('categoryVelocity').innerHTML = categoryHtml || '<p class="item-meta">Not enough data yet</p>';
+      
+      // Vendor velocity
+      const vendorHtml = inventoryData.velocity.byVendor.slice(0, 6).map((vendor, i) => {
+        const speedClass = vendor.avgDaysToSell <= 30 ? 'fast' : vendor.avgDaysToSell >= 60 ? 'slow' : '';
+        const rankClass = i < 2 ? 'fast' : i >= 4 ? 'slow' : '';
+        return `
+          <div class="velocity-item">
+            <div class="velocity-rank ${rankClass}">${i + 1}</div>
+            <div class="velocity-info">
+              <div class="velocity-name">${vendor.name}</div>
+              <div class="velocity-meta">${vendor.itemsSold} items sold</div>
+            </div>
+            <div class="velocity-days ${speedClass}">${vendor.avgDaysToSell} days</div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('vendorVelocity').innerHTML = vendorHtml || '<p class="item-meta">Not enough data yet</p>';
+    }
+
+    function renderDeadStock() {
+      if (!inventoryData?.deadStock) return;
+      
+      const summary = inventoryData.deadStock.summary;
+      
+      // Update summary cards
+      document.getElementById('count60').textContent = summary.items60Days;
+      document.getElementById('count90').textContent = summary.items90Days;
+      document.getElementById('count120').textContent = summary.items120Days;
+      
+      document.getElementById('value60').textContent = '$' + summary.value60Days.toLocaleString() + ' tied up';
+      document.getElementById('value90').textContent = '$' + summary.value90Days.toLocaleString() + ' tied up';
+      document.getElementById('value120').textContent = '$' + summary.value120Days.toLocaleString() + ' tied up';
+      
+      renderTable();
     }
 
     function filterByDays(days) {
@@ -488,17 +710,7 @@
     }
 
     function renderTable() {
-      let filteredItems = allItems;
-      
-      if (currentFilter === 60) {
-        filteredItems = allItems.filter(item => item.daysStagnant >= 60 && item.daysStagnant < 90);
-      } else if (currentFilter === 90) {
-        filteredItems = allItems.filter(item => item.daysStagnant >= 90 && item.daysStagnant < 120);
-      } else if (currentFilter === 120) {
-        filteredItems = allItems.filter(item => item.daysStagnant >= 120);
-      }
-      
-      if (filteredItems.length === 0) {
+      if (!inventoryData?.deadStock?.items) {
         document.getElementById('tableBody').innerHTML = `
           <div class="empty-state">
             <div class="icon">🎉</div>
@@ -509,16 +721,36 @@
         return;
       }
       
-      document.getElementById('tableBody').innerHTML = filteredItems.map(item => `
+      let items = inventoryData.deadStock.items;
+      
+      if (currentFilter === 60) {
+        items = items.filter(item => item.daysStagnant >= 60 && item.daysStagnant < 90);
+      } else if (currentFilter === 90) {
+        items = items.filter(item => item.daysStagnant >= 90 && item.daysStagnant < 120);
+      } else if (currentFilter === 120) {
+        items = items.filter(item => item.daysStagnant >= 120);
+      }
+      
+      if (items.length === 0) {
+        document.getElementById('tableBody').innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎉</div>
+            <h3>No items in this category!</h3>
+            <p>Great news - no items match this filter.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      document.getElementById('tableBody').innerHTML = items.map(item => `
         <div class="table-row">
           <div>
             <div class="item-name">${item.name}</div>
-            <div class="item-meta">${item.color || ''} ${item.size ? '• ' + item.size : ''}</div>
           </div>
           <div class="item-meta">${item.vendor}</div>
           <div class="item-meta">${item.category || '-'}</div>
           <div><strong>${item.qty}</strong></div>
-          <div class="price">$${item.price.toFixed(0)}</div>
+          <div class="price">$${item.price}</div>
           <div>
             <span class="days-badge ${getDaysBadgeClass(item.daysStagnant)}">${item.daysStagnant} days</span>
           </div>
@@ -533,8 +765,38 @@
       return 'warning';
     }
 
+    async function runSync() {
+      const btn = document.getElementById('syncBtn');
+      const status = document.getElementById('syncStatus');
+      
+      btn.disabled = true;
+      btn.textContent = '⏳ Syncing...';
+      status.textContent = 'Syncing data from Heartland...';
+      status.classList.remove('success');
+      
+      try {
+        const response = await fetch('/api/inventory/sync', { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+          status.textContent = `Sync complete! (${result.duration})`;
+          status.classList.add('success');
+          
+          // Reload data
+          await loadData();
+        } else {
+          status.textContent = 'Sync failed: ' + (result.error || 'Unknown error');
+        }
+      } catch (error) {
+        status.textContent = 'Sync failed: ' + error.message;
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '🔄 Sync Data';
+    }
+
     // Load data on page load
-    loadDeadStock();
+    loadData();
   </script>
 </body>
 </html>
