@@ -1543,7 +1543,7 @@ async function runNightlySync() {
       // Get aggregated stats from our transactions
       const statsResult = await pool.query(`
         SELECT 
-          COUNT(*) as total_purchases,
+          COUNT(DISTINCT DATE(transaction_date)) as total_purchases,
           SUM(total_amount) as lifetime_value,
           AVG(total_amount) as avg_purchase,
           MIN(transaction_date) as first_purchase,
