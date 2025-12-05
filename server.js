@@ -375,9 +375,8 @@ app.get('/api/receipts', async (req, res) => {
             gridIds.add(line.grid_id);
           }
         }
-        gridCount = gridIds.size || itemCount; // Fall back to item count if no grids
         
-        // Get vendor from first item's primary_vendor_id
+        // Get vendor from first item's primary_vendor_id (and grid_id if not found in lines)
         if (lines.results && lines.results.length > 0) {
           const firstLine = lines.results[0];
           if (firstLine.item_id) {
@@ -386,11 +385,17 @@ app.get('/api/receipts', async (req, res) => {
               if (item.primary_vendor_id) {
                 vendorName = await getVendorName(item.primary_vendor_id);
               }
+              // If no grid_ids found in lines, get from item
+              if (gridIds.size === 0 && item.grid_id) {
+                gridIds.add(item.grid_id);
+              }
             } catch (e) {
               console.error('Error fetching item for vendor:', e);
             }
           }
         }
+        
+        gridCount = gridIds.size || 1; // Default to 1 if still no grids found
       } catch (e) {
         console.error('Error fetching receipt lines:', e);
       }
