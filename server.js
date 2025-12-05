@@ -1052,15 +1052,56 @@ app.post('/api/inventory/sync', async (req, res) => {
     }
     console.log(`Found ${allInventory.length} inventory items from Heartland`);
     
-    // ========== STEP 5: Calculate dead stock based on DAYS SINCE RECEIVED ==========
+    // Build inventory lookup
+    const inventoryLookup = {};
+    for (const inv of allInventory) {
+      if (inv.item_id) {
+        inventoryLookup[inv.item_id] = inv.qty_on_hand || 0;
+      }
+    }
+    
+    // ========== STEP 5: Calculate store health metrics (ALL items received) ==========
+    console.log('Calculating store health metrics...');
+    let totalReceivedValue30 = 0, totalReceivedValue45 = 0, totalReceivedValue60 = 0, totalReceivedValue90 = 0;
+    let stillOnHandValue30 = 0, stillOnHandValue45 = 0, stillOnHandValue60 = 0, stillOnHandValue90 = 0;
+    
+    for (const itemId of Object.keys(itemReceiveData)) {
+      const receiveInfo = itemReceiveData[itemId];
+      if (!receiveInfo.receivedDate) continue;
+      
+      const receivedDate = new Date(receiveInfo.receivedDate);
+      const daysSinceReceived = Math.floor((now - receivedDate) / (1000 * 60 * 60 * 24));
+      
+      const soldInfo = itemSoldData[itemId] || { qtySold: 0, price: 0 };
+      const qtyOnHand = inventoryLookup[itemId] || 0;
+      
+      const price = soldInfo.price || receiveInfo.cost * 2.5 || 0;
+      const totalReceivedRetail = receiveInfo.qtyReceived * price;
+      const retailValueOnHand = qtyOnHand * price;
+      
+      if (daysSinceReceived <= 30) {
+        totalReceivedValue30 += totalReceivedRetail;
+        stillOnHandValue30 += retailValueOnHand;
+      }
+      if (daysSinceReceived <= 45) {
+        totalReceivedValue45 += totalReceivedRetail;
+        stillOnHandValue45 += retailValueOnHand;
+      }
+      if (daysSinceReceived <= 60) {
+        totalReceivedValue60 += totalReceivedRetail;
+        stillOnHandValue60 += retailValueOnHand;
+      }
+      if (daysSinceReceived <= 90) {
+        totalReceivedValue90 += totalReceivedRetail;
+        stillOnHandValue90 += retailValueOnHand;
+      }
+    }
+    
+    // ========== STEP 6: Calculate dead stock (only items with inventory) ==========
     console.log('Calculating dead stock (days since received)...');
     const deadStockItems = [];
     let totalFresh = 0, totalWatch = 0, total60Days = 0, total90Days = 0, total120Days = 0;
     let valueFresh = 0, valueWatch = 0, value60Days = 0, value90Days = 0, value120Days = 0;
-    
-    // Store-wide metrics
-    let totalReceivedValue30 = 0, totalReceivedValue45 = 0, totalReceivedValue60 = 0, totalReceivedValue90 = 0;
-    let stillOnHandValue30 = 0, stillOnHandValue45 = 0, stillOnHandValue60 = 0, stillOnHandValue90 = 0;
     
     for (const inv of allInventory) {
       if (!inv.item_id) continue;
@@ -1078,25 +1119,6 @@ app.post('/api/inventory/sync', async (req, res) => {
       const cost = receiveInfo.cost || price * 0.4 || 0;
       const valueOnHand = qtyOnHand * cost;
       const retailValueOnHand = qtyOnHand * price;
-      
-      // Track received values for summary
-      const totalReceivedRetail = receiveInfo.qtyReceived * price;
-      if (daysSinceReceived <= 30) {
-        totalReceivedValue30 += totalReceivedRetail;
-        stillOnHandValue30 += retailValueOnHand;
-      }
-      if (daysSinceReceived <= 45) {
-        totalReceivedValue45 += totalReceivedRetail;
-        stillOnHandValue45 += retailValueOnHand;
-      }
-      if (daysSinceReceived <= 60) {
-        totalReceivedValue60 += totalReceivedRetail;
-        stillOnHandValue60 += retailValueOnHand;
-      }
-      if (daysSinceReceived <= 90) {
-        totalReceivedValue90 += totalReceivedRetail;
-        stillOnHandValue90 += retailValueOnHand;
-      }
       
       // Categorize by days since received
       let bucket = 'fresh';
@@ -1820,15 +1842,60 @@ async function runNightlySync() {
       }
       console.log(`Found ${allInventory.length} inventory items from Heartland`);
       
-      // Calculate dead stock based on DAYS SINCE RECEIVED
+      // Build inventory lookup
+      const inventoryLookup = {};
+      for (const inv of allInventory) {
+        if (inv.item_id) {
+          inventoryLookup[inv.item_id] = inv.qty_on_hand || 0;
+        }
+      }
+      
+      // ========== CALCULATE STORE HEALTH METRICS ==========
+      // This looks at ALL items received in each time window, regardless of current inventory
       const now = new Date();
+      let totalReceivedValue30 = 0, totalReceivedValue45 = 0, totalReceivedValue60 = 0, totalReceivedValue90 = 0;
+      let stillOnHandValue30 = 0, stillOnHandValue45 = 0, stillOnHandValue60 = 0, stillOnHandValue90 = 0;
+      
+      for (const itemId of Object.keys(itemReceiveData)) {
+        const receiveInfo = itemReceiveData[itemId];
+        if (!receiveInfo.receivedDate) continue;
+        
+        const receivedDate = new Date(receiveInfo.receivedDate);
+        const daysSinceReceived = Math.floor((now - receivedDate) / (1000 * 60 * 60 * 24));
+        
+        const soldInfo = itemSoldData[itemId] || { qtySold: 0, price: 0 };
+        const qtyOnHand = inventoryLookup[itemId] || 0;
+        
+        // Get price (from sales or estimate from cost)
+        const price = soldInfo.price || receiveInfo.cost * 2.5 || 0;
+        
+        // Calculate values
+        const totalReceivedRetail = receiveInfo.qtyReceived * price;
+        const retailValueOnHand = qtyOnHand * price;
+        
+        // Add to appropriate time buckets
+        if (daysSinceReceived <= 30) {
+          totalReceivedValue30 += totalReceivedRetail;
+          stillOnHandValue30 += retailValueOnHand;
+        }
+        if (daysSinceReceived <= 45) {
+          totalReceivedValue45 += totalReceivedRetail;
+          stillOnHandValue45 += retailValueOnHand;
+        }
+        if (daysSinceReceived <= 60) {
+          totalReceivedValue60 += totalReceivedRetail;
+          stillOnHandValue60 += retailValueOnHand;
+        }
+        if (daysSinceReceived <= 90) {
+          totalReceivedValue90 += totalReceivedRetail;
+          stillOnHandValue90 += retailValueOnHand;
+        }
+      }
+      
+      // ========== CALCULATE DEAD STOCK (only items with inventory) ==========
       const deadStockItems = [];
       let totalFresh = 0, totalWatch = 0, total60Days = 0, total90Days = 0, total120Days = 0;
       let valueFresh = 0, valueWatch = 0, value60Days = 0, value90Days = 0, value120Days = 0;
-      
-      // Track totals for summary metrics
-      let totalReceivedValue30 = 0, totalReceivedValue45 = 0, totalReceivedValue60 = 0, totalReceivedValue90 = 0;
-      let stillOnHandValue30 = 0, stillOnHandValue45 = 0, stillOnHandValue60 = 0, stillOnHandValue90 = 0;
       
       for (const inv of allInventory) {
         if (!inv.item_id) continue;
@@ -1846,27 +1913,6 @@ async function runNightlySync() {
         const cost = receiveInfo.cost || price * 0.4 || 0;
         const valueOnHand = qtyOnHand * cost;
         const retailValueOnHand = qtyOnHand * price;
-        
-        // Track received values for summary (use retail value)
-        const totalReceivedRetail = receiveInfo.qtyReceived * price;
-        if (daysSinceReceived <= 30) {
-          totalReceivedValue30 += totalReceivedRetail;
-          stillOnHandValue30 += retailValueOnHand;
-        }
-        if (daysSinceReceived <= 45) {
-          totalReceivedValue45 += totalReceivedRetail;
-          stillOnHandValue45 += retailValueOnHand;
-        }
-        if (daysSinceReceived <= 60) {
-          totalReceivedValue60 += totalReceivedRetail;
-          stillOnHandValue60 += retailValueOnHand;
-        }
-        if (daysSinceReceived <= 90) {
-          totalReceivedValue90 += totalReceivedRetail;
-          stillOnHandValue90 += retailValueOnHand;
-        }
-        
-        // Categorize by days since received (new buckets per Grok's suggestion)
         let bucket = 'fresh';
         let suggestedMarkdown = null;
         
