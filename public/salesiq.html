@@ -37,23 +37,6 @@
       color: #e91e8a;
     }
 
-    .nav-breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.9rem;
-      color: #666;
-    }
-
-    .nav-breadcrumb a {
-      color: #007bff;
-      text-decoration: none;
-    }
-
-    .nav-breadcrumb a:hover {
-      text-decoration: underline;
-    }
-
     .container {
       max-width: 1200px;
       margin: 0 auto;
@@ -96,179 +79,9 @@
       margin: 0;
     }
 
-    /* Date Range Selector */
-    .date-controls {
-      display: flex;
-      gap: 8px;
-      background: white;
-      padding: 6px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .date-btn {
-      padding: 8px 16px;
-      border: none;
-      background: transparent;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: #666;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .date-btn:hover {
-      color: #333;
-      background: #f5f5f5;
-    }
-
-    .date-btn.active {
-      background: #222;
-      color: white;
-    }
-
-    /* Main Stats Row */
-    .main-stats {
-      display: grid;
-      grid-template-columns: 2fr 1fr 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .stat-card {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .stat-card.featured {
-      background: linear-gradient(135deg, #222 0%, #444 100%);
-      color: white;
-    }
-
-    .stat-card.featured .stat-label {
-      color: rgba(255,255,255,0.7);
-    }
-
-    .stat-card.featured .stat-change.up {
-      color: #34d399;
-    }
-
-    .stat-number {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #222;
-    }
-
-    .stat-card.featured .stat-number {
-      color: white;
-      font-size: 2.5rem;
-    }
-
-    .stat-label {
-      font-size: 0.875rem;
-      color: #666;
-      margin-bottom: 4px;
-    }
-
-    .stat-change {
-      font-size: 0.8rem;
-      font-weight: 500;
-      margin-top: 4px;
-    }
-
-    .stat-change.up {
-      color: #10b981;
-    }
-
-    .stat-change.down {
-      color: #dc2626;
-    }
-
-    .stat-change.neutral {
-      color: #666;
-    }
-
-    /* Goal Progress */
-    .goal-section {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      margin-bottom: 24px;
-    }
-
-    .goal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .goal-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #222;
-    }
-
-    .goal-numbers {
-      text-align: right;
-    }
-
-    .goal-current {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #222;
-    }
-
-    .goal-target {
-      font-size: 0.85rem;
-      color: #666;
-    }
-
-    .goal-bar-container {
-      background: #f0f0f0;
-      border-radius: 8px;
-      height: 24px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .goal-bar {
-      height: 100%;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-      transition: width 0.5s ease;
-    }
-
-    .goal-bar.behind {
-      background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
-    }
-
-    .goal-bar.on-track {
-      background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-    }
-
-    .goal-bar.ahead {
-      background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%);
-    }
-
-    .goal-pace {
-      margin-top: 12px;
-      font-size: 0.85rem;
-      color: #666;
-    }
-
-    .goal-pace strong {
-      color: #222;
-    }
-
-    /* Insight Box */
+    /* AI Insight Box */
     .insight-box {
-      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-      border: 1px solid #93c5fd;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
       border-radius: 12px;
       padding: 20px;
       margin-bottom: 24px;
@@ -279,20 +92,196 @@
 
     .insight-icon {
       font-size: 1.5rem;
-      flex-shrink: 0;
     }
 
     .insight-content h4 {
+      color: #92400e;
+      margin-bottom: 8px;
       font-size: 0.95rem;
-      font-weight: 600;
-      color: #1e40af;
-      margin-bottom: 6px;
     }
 
     .insight-content p {
+      color: #78350f;
       font-size: 0.9rem;
-      color: #1e3a8a;
-      margin: 0;
+      line-height: 1.6;
+    }
+
+    /* Heatmap Section */
+    .heatmap-section {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .heatmap-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .heatmap-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #222;
+    }
+
+    .heatmap-legend {
+      display: flex;
+      gap: 16px;
+    }
+
+    .heatmap-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .heatmap-legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+    }
+
+    .heatmap-legend-color.low { background: #f0f0f0; }
+    .heatmap-legend-color.medium { background: #fde68a; }
+    .heatmap-legend-color.high { background: #fbbf24; }
+    .heatmap-legend-color.peak { background: #f59e0b; }
+
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: 50px repeat(10, 1fr);
+      gap: 4px;
+    }
+
+    .heatmap-header-cell {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #888;
+      padding: 8px 4px;
+    }
+
+    .heatmap-row-label {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-size: 0.75rem;
+      color: #666;
+      font-weight: 500;
+    }
+
+    .heatmap-cell {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #666;
+      min-height: 32px;
+    }
+
+    .heatmap-cell.low { background: #f5f5f5; color: #999; }
+    .heatmap-cell.medium { background: #fef3c7; color: #92400e; }
+    .heatmap-cell.high { background: #fde68a; color: #78350f; }
+    .heatmap-cell.peak { background: #fbbf24; color: #451a03; }
+    .heatmap-cell.closed { background: #f0f0f0; color: #ccc; }
+
+    /* Hours Analysis */
+    .hours-analysis {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .hours-analysis-header {
+      margin-bottom: 20px;
+    }
+
+    .hours-analysis-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #222;
+    }
+
+    .hours-bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      height: 180px;
+      padding: 0 10px;
+    }
+
+    .hour-bar-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+    }
+
+    .hour-bar {
+      width: 100%;
+      max-width: 48px;
+      border-radius: 4px 4px 0 0;
+      transition: all 0.3s ease;
+    }
+
+    .hour-bar.low { background: #e5e5e5; }
+    .hour-bar.medium { background: #fde68a; }
+    .hour-bar.high { background: #fbbf24; }
+    .hour-bar.peak { background: #f59e0b; }
+
+    .hour-label {
+      font-size: 0.7rem;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    .hour-value {
+      font-size: 0.65rem;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .hours-summary {
+      display: flex;
+      gap: 24px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #f0f0f0;
+    }
+
+    .hours-summary-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hours-summary-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .hours-summary-dot.peak { background: #f59e0b; }
+    .hours-summary-dot.slow { background: #e5e5e5; }
+
+    .hours-summary-text {
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .hours-summary-text strong {
+      color: #222;
     }
 
     /* Two Column Layout */
@@ -301,6 +290,12 @@
       grid-template-columns: 1fr 1fr;
       gap: 24px;
       margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .two-column {
+        grid-template-columns: 1fr;
+      }
     }
 
     .panel {
@@ -318,296 +313,84 @@
     }
 
     .panel-title {
-      font-size: 1rem;
       font-weight: 600;
       color: #222;
     }
 
-    .panel-link {
-      font-size: 0.8rem;
-      color: #007bff;
-      text-decoration: none;
-    }
-
-    .panel-link:hover {
-      text-decoration: underline;
-    }
-
-    /* Top Sellers List */
-    .top-seller-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-
-    .top-seller-item:last-child {
-      border-bottom: none;
-    }
-
-    .rank {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #f0f0f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #666;
-    }
-
-    .rank.gold {
-      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-      color: white;
-    }
-
-    .rank.silver {
-      background: linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%);
-      color: white;
-    }
-
-    .rank.bronze {
-      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-      color: white;
-    }
-
-    .top-seller-info {
-      flex: 1;
-    }
-
-    .top-seller-name {
-      font-weight: 500;
-      color: #222;
-      font-size: 0.9rem;
-    }
-
-    .top-seller-meta {
-      font-size: 0.8rem;
-      color: #666;
-    }
-
-    .top-seller-sales {
-      text-align: right;
-    }
-
-    .top-seller-units {
-      font-weight: 600;
-      color: #222;
-      font-size: 0.9rem;
-    }
-
-    .top-seller-revenue {
-      font-size: 0.8rem;
-      color: #666;
-    }
-
-    /* Brand Performance */
-    .brand-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-
-    .brand-item:last-child {
-      border-bottom: none;
-    }
-
-    .brand-logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      background: #f5f5f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #666;
-    }
-
-    .brand-info {
-      flex: 1;
-    }
-
-    .brand-name {
-      font-weight: 500;
-      color: #222;
-      font-size: 0.9rem;
-    }
-
-    .brand-bar-container {
-      height: 6px;
-      background: #f0f0f0;
-      border-radius: 3px;
-      margin-top: 6px;
-      overflow: hidden;
-    }
-
-    .brand-bar {
-      height: 100%;
-      border-radius: 3px;
-      background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%);
-    }
-
-    .brand-stats {
-      text-align: right;
-    }
-
-    .brand-revenue {
-      font-weight: 600;
-      color: #222;
-      font-size: 0.9rem;
-    }
-
-    .brand-change {
-      font-size: 0.75rem;
-      font-weight: 500;
-    }
-
-    .brand-change.up {
-      color: #10b981;
-    }
-
-    .brand-change.down {
-      color: #dc2626;
-    }
-
-    /* Sales by Channel */
-    .channel-row {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .channel-card {
-      flex: 1;
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .channel-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .channel-icon {
-      font-size: 1.25rem;
-    }
-
-    .channel-name {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #222;
-    }
-
-    .channel-revenue {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #222;
-      margin-bottom: 4px;
-    }
-
-    .channel-meta {
-      font-size: 0.8rem;
-      color: #666;
-    }
-
-    .channel-breakdown {
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid #f0f0f0;
-    }
-
-    .channel-stat {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.85rem;
-      margin-bottom: 4px;
-    }
-
-    .channel-stat-label {
-      color: #666;
-    }
-
-    .channel-stat-value {
-      font-weight: 500;
-      color: #222;
-    }
-
-    /* Time Patterns */
+    /* Day Grid */
     .time-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      display: flex;
+      flex-direction: column;
       gap: 8px;
     }
 
-    .day-card {
-      background: #f8f9fa;
-      border-radius: 8px;
-      padding: 12px;
-      text-align: center;
-    }
-
-    .day-card.best {
-      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-      border: 1px solid #10b981;
-    }
-
-    .day-name {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #666;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-
-    .day-card.best .day-name {
-      color: #047857;
-    }
-
-    .day-revenue {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #222;
-    }
-
-    .day-card.best .day-revenue {
-      color: #047857;
-    }
-
-    .day-transactions {
-      font-size: 0.7rem;
-      color: #666;
-      margin-top: 2px;
-    }
-
-    /* Category Performance */
-    .category-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-
-    .category-item {
+    .time-row {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 12px;
-      background: #f8f9fa;
-      border-radius: 8px;
+    }
+
+    .time-label {
+      width: 40px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #666;
+    }
+
+    .time-bar-container {
+      flex: 1;
+      height: 28px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .time-bar {
+      height: 100%;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+      transition: width 0.5s ease;
+    }
+
+    .time-bar.regular { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+    .time-bar.best { background: linear-gradient(90deg, #34d399, #10b981); }
+
+    .time-transactions {
+      font-size: 0.75rem;
+      color: #888;
+      width: 80px;
+      text-align: right;
+    }
+
+    /* Category Grid */
+    .category-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .category-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
     .category-icon {
-      font-size: 1.5rem;
+      font-size: 1.25rem;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      border-radius: 8px;
     }
 
     .category-info {
@@ -615,297 +398,62 @@
     }
 
     .category-name {
-      font-size: 0.85rem;
       font-weight: 500;
       color: #222;
+      font-size: 0.9rem;
     }
 
     .category-revenue {
       font-size: 0.8rem;
-      color: #666;
+      color: #888;
     }
 
     .category-change {
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
     }
 
     .category-change.up {
-      color: #10b981;
+      background: #d1fae5;
+      color: #059669;
     }
 
     .category-change.down {
+      background: #fee2e2;
       color: #dc2626;
     }
 
-    /* Hourly Heatmap */
-    .heatmap-section {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      margin-bottom: 24px;
-    }
-
-    .heatmap-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .heatmap-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #222;
-    }
-
-    .heatmap-legend {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 0.75rem;
-      color: #666;
-    }
-
-    .heatmap-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .heatmap-legend-color {
-      width: 16px;
-      height: 12px;
-      border-radius: 2px;
-    }
-
-    .heatmap-legend-color.low { background: #f0fdf4; border: 1px solid #bbf7d0; }
-    .heatmap-legend-color.medium { background: #86efac; }
-    .heatmap-legend-color.high { background: #22c55e; }
-    .heatmap-legend-color.peak { background: #15803d; }
-
-    .heatmap-container {
-      overflow-x: auto;
-    }
-
-    .heatmap-grid {
-      display: grid;
-      grid-template-columns: 60px repeat(10, 1fr);
-      gap: 4px;
-      min-width: 700px;
-    }
-
-    .heatmap-hour-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #666;
+    /* Loading State */
+    .loading {
       text-align: center;
-      padding: 8px 4px;
+      padding: 40px;
+      color: #666;
     }
 
-    .heatmap-day-label {
+    /* Data status badge */
+    .data-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
       font-size: 0.75rem;
-      font-weight: 600;
+      background: #f0f0f0;
       color: #666;
-      display: flex;
-      align-items: center;
-      padding-right: 8px;
     }
 
-    .heatmap-cell {
-      aspect-ratio: 1.5;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.7rem;
-      font-weight: 600;
-      min-height: 36px;
-      cursor: default;
-      transition: transform 0.15s;
+    .data-status.live {
+      background: #d1fae5;
+      color: #059669;
     }
 
-    .heatmap-cell:hover {
-      transform: scale(1.1);
-      z-index: 1;
-    }
-
-    .heatmap-cell.level-0 { background: #f8fafc; color: #94a3b8; }
-    .heatmap-cell.level-1 { background: #f0fdf4; color: #166534; }
-    .heatmap-cell.level-2 { background: #bbf7d0; color: #166534; }
-    .heatmap-cell.level-3 { background: #86efac; color: #166534; }
-    .heatmap-cell.level-4 { background: #4ade80; color: #ffffff; }
-    .heatmap-cell.level-5 { background: #22c55e; color: #ffffff; }
-    .heatmap-cell.level-6 { background: #16a34a; color: #ffffff; }
-    .heatmap-cell.level-7 { background: #15803d; color: #ffffff; }
-
-    .heatmap-cell.peak {
-      box-shadow: 0 0 0 2px #e91e8a;
-    }
-
-    /* Staffing Insight Box */
-    .staffing-insight {
-      background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%);
-      border: 1px solid #e879f9;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 24px;
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-    }
-
-    .staffing-insight-icon {
-      font-size: 1.5rem;
-      flex-shrink: 0;
-    }
-
-    .staffing-insight-content h4 {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #86198f;
-      margin-bottom: 6px;
-    }
-
-    .staffing-insight-content p {
-      font-size: 0.9rem;
-      color: #a21caf;
-      margin: 0 0 12px 0;
-    }
-
-    .staffing-recommendations {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .staffing-rec {
-      background: white;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 0.8rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .staffing-rec-icon {
-      font-size: 1rem;
-    }
-
-    .staffing-rec-text {
-      color: #333;
-    }
-
-    .staffing-rec-text strong {
-      color: #86198f;
-    }
-
-    /* Hours Analysis */
-    .hours-analysis {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      margin-bottom: 24px;
-    }
-
-    .hours-analysis-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .hours-analysis-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #222;
-    }
-
-    .hours-bar-chart {
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-      height: 120px;
-      padding-top: 20px;
-    }
-
-    .hour-bar-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100%;
-    }
-
-    .hour-bar {
-      width: 100%;
-      border-radius: 4px 4px 0 0;
-      background: linear-gradient(180deg, #e91e8a 0%, #ff6b9d 100%);
-      transition: height 0.3s ease;
-      min-width: 24px;
-      position: relative;
-    }
-
-    .hour-bar.low {
-      background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
-    }
-
-    .hour-bar.peak {
-      background: linear-gradient(180deg, #e91e8a 0%, #ff6b9d 100%);
-      box-shadow: 0 0 8px rgba(233, 30, 138, 0.4);
-    }
-
-    .hour-bar-value {
-      position: absolute;
-      top: -18px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 0.65rem;
-      font-weight: 600;
-      color: #666;
-      white-space: nowrap;
-    }
-
-    .hour-bar-label {
-      margin-top: 8px;
-      font-size: 0.7rem;
-      color: #666;
-      font-weight: 500;
-    }
-
-    .hours-summary {
-      display: flex;
-      gap: 24px;
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid #f0f0f0;
-    }
-
-    .hours-summary-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .hours-summary-dot {
-      width: 10px;
-      height: 10px;
+    .data-status-dot {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-    }
-
-    .hours-summary-dot.peak { background: #e91e8a; }
-    .hours-summary-dot.slow { background: #94a3b8; }
-
-    .hours-summary-text {
-      font-size: 0.85rem;
-      color: #666;
-    }
-
-    .hours-summary-text strong {
-      color: #222;
+      background: currentColor;
     }
   </style>
 </head>
@@ -943,142 +491,27 @@
           <h1 class="page-title">SalesIQ</h1>
           <span class="pro-badge">PRO</span>
         </div>
-        <p class="page-subtitle">Unified sales insights across all channels</p>
+        <p class="page-subtitle">Sales patterns and timing insights</p>
       </div>
-
-      <div class="date-controls">
-        <button class="date-btn" onclick="setDateRange('today')">Today</button>
-        <button class="date-btn" onclick="setDateRange('week')">This Week</button>
-        <button class="date-btn active" onclick="setDateRange('month')">This Month</button>
-        <button class="date-btn" onclick="setDateRange('quarter')">Quarter</button>
+      <div class="data-status">
+        <span class="data-status-dot"></span>
+        Sample data — syncs nightly
       </div>
     </div>
 
-    <!-- Main Stats -->
-    <div class="main-stats">
-      <div class="stat-card featured">
-        <div class="stat-label">Total Revenue</div>
-        <div class="stat-number">$47,280</div>
-        <div class="stat-change up">↑ 12.4% vs last month</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Transactions</div>
-        <div class="stat-number">284</div>
-        <div class="stat-change up">↑ 8.2%</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Avg Ticket</div>
-        <div class="stat-number">$166</div>
-        <div class="stat-change up">↑ 3.8%</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Units Sold</div>
-        <div class="stat-number">412</div>
-        <div class="stat-change down">↓ 2.1%</div>
-      </div>
-    </div>
-
-    <!-- Goal Progress -->
-    <div class="goal-section">
-      <div class="goal-header">
-        <div class="goal-title">December Goal Progress</div>
-        <div class="goal-numbers">
-          <div class="goal-current">$47,280</div>
-          <div class="goal-target">of $65,000 goal</div>
-        </div>
-      </div>
-      <div class="goal-bar-container">
-        <div class="goal-bar on-track" style="width: 72.7%;"></div>
-      </div>
-      <div class="goal-pace">
-        <strong>On track</strong> — At current pace, you'll hit <strong>$68,450</strong> by month end (+5.3% over goal)
-      </div>
-    </div>
-
-    <!-- Insight Box -->
+    <!-- AI Insight Box -->
     <div class="insight-box">
       <div class="insight-icon">💡</div>
       <div class="insight-content">
-        <h4>This Week's Insight</h4>
-        <p>Saturday sales were 34% higher than your 4-week Saturday average. The Zimmermann trunk show drove 8 transactions averaging $312 each. Consider scheduling more brand events on weekends.</p>
-      </div>
-    </div>
-
-    <!-- Sales by Channel -->
-    <div class="channel-row">
-      <div class="channel-card">
-        <div class="channel-header">
-          <span class="channel-icon">🏪</span>
-          <span class="channel-name">In-Store (Heartland)</span>
-        </div>
-        <div class="channel-revenue">$38,640</div>
-        <div class="channel-meta">82% of total revenue</div>
-        <div class="channel-breakdown">
-          <div class="channel-stat">
-            <span class="channel-stat-label">Transactions</span>
-            <span class="channel-stat-value">218</span>
-          </div>
-          <div class="channel-stat">
-            <span class="channel-stat-label">Avg Ticket</span>
-            <span class="channel-stat-value">$177</span>
-          </div>
-          <div class="channel-stat">
-            <span class="channel-stat-label">Units/Transaction</span>
-            <span class="channel-stat-value">1.6</span>
-          </div>
-        </div>
-      </div>
-      <div class="channel-card">
-        <div class="channel-header">
-          <span class="channel-icon">🛒</span>
-          <span class="channel-name">Online (Shopify)</span>
-        </div>
-        <div class="channel-revenue">$8,640</div>
-        <div class="channel-meta">18% of total revenue</div>
-        <div class="channel-breakdown">
-          <div class="channel-stat">
-            <span class="channel-stat-label">Orders</span>
-            <span class="channel-stat-value">66</span>
-          </div>
-          <div class="channel-stat">
-            <span class="channel-stat-label">Avg Order</span>
-            <span class="channel-stat-value">$131</span>
-          </div>
-          <div class="channel-stat">
-            <span class="channel-stat-label">Units/Order</span>
-            <span class="channel-stat-value">1.2</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Staffing Insight -->
-    <div class="staffing-insight">
-      <div class="staffing-insight-icon">👥</div>
-      <div class="staffing-insight-content">
-        <h4>Staffing Recommendation</h4>
-        <p>Based on your traffic patterns, here are opportunities to optimize coverage:</p>
-        <div class="staffing-recommendations">
-          <div class="staffing-rec">
-            <span class="staffing-rec-icon">📈</span>
-            <span class="staffing-rec-text"><strong>Add staff Thu-Sat 2-6pm</strong> — peak traffic hours</span>
-          </div>
-          <div class="staffing-rec">
-            <span class="staffing-rec-icon">⏰</span>
-            <span class="staffing-rec-text"><strong>Consider opening at 11am</strong> — 10am hour averages only $82</span>
-          </div>
-          <div class="staffing-rec">
-            <span class="staffing-rec-icon">🌙</span>
-            <span class="staffing-rec-text"><strong>Close at 5pm on Mon-Wed</strong> — last hour averages $45</span>
-          </div>
-        </div>
+        <h4>AI Analysis</h4>
+        <p id="aiInsight">Saturday is your strongest day with 34% higher sales than weekday average. Peak hours are 2-5pm across all days. Consider adding staff during these peak windows and evaluating whether 10am opening is necessary — that hour averages only $82 in sales.</p>
       </div>
     </div>
 
     <!-- Hourly Heatmap -->
     <div class="heatmap-section">
       <div class="heatmap-header">
-        <div class="heatmap-title">Sales by Day & Hour (In-Store)</div>
+        <div class="heatmap-title">Sales by Day & Hour</div>
         <div class="heatmap-legend">
           <div class="heatmap-legend-item">
             <div class="heatmap-legend-color low"></div>
@@ -1125,33 +558,11 @@
       </div>
     </div>
 
-    <!-- Two Column: Top Sellers & Brand Performance -->
+    <!-- Two Column: Sales by Day & Category Performance -->
     <div class="two-column">
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Top Sellers</span>
-          <a href="#" class="panel-link">View all →</a>
-        </div>
-        <div id="topSellersBody">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Brand Performance</span>
-          <a href="#" class="panel-link">View all →</a>
-        </div>
-        <div id="brandPerformanceBody">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Two Column: Best Days & Category Performance -->
-    <div class="two-column">
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Sales by Day</span>
+          <span class="panel-title">Sales by Day of Week</span>
         </div>
         <div class="time-grid" id="dayGrid">
           <!-- Rendered by JS -->
@@ -1169,23 +580,7 @@
   </div>
 
   <script>
-    // Sample Data
-    const topSellers = [
-      { rank: 1, name: 'Zimmermann Floral Midi Dress', brand: 'Zimmermann', units: 8, revenue: 4792 },
-      { rank: 2, name: 'Citizens of Humanity Emerson Jean', brand: 'Citizens of Humanity', units: 12, revenue: 2736 },
-      { rank: 3, name: 'Veronica Beard Dickey Blazer', brand: 'Veronica Beard', units: 5, revenue: 2495 },
-      { rank: 4, name: 'Rails Ellis Shirt Dress', brand: 'Rails', units: 9, revenue: 1782 },
-      { rank: 5, name: 'Vince Cashmere Cardigan', brand: 'Vince', units: 6, revenue: 1470 }
-    ];
-
-    const brands = [
-      { name: 'Zimmermann', revenue: 8420, change: 24, pct: 100 },
-      { name: 'Veronica Beard', revenue: 6180, change: 12, pct: 73 },
-      { name: 'Citizens of Humanity', revenue: 5840, change: -3, pct: 69 },
-      { name: 'Vince', revenue: 4920, change: 8, pct: 58 },
-      { name: 'Rails', revenue: 3680, change: -7, pct: 44 }
-    ];
-
+    // Sample Data - will be replaced by API data when background sync is built
     const dailySales = [
       { day: 'Sun', revenue: 4280, transactions: 24, best: false },
       { day: 'Mon', revenue: 3120, transactions: 19, best: false },
@@ -1207,168 +602,135 @@
 
     // Hourly heatmap data (day x hour = avg sales)
     const heatmapData = {
-      hours: ['10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm', '7pm'],
+      hours: ['10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm', '5pm', '6pm'],
       days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       values: [
-        // Sun
-        [85, 120, 280, 320, 380, 420, 350, 280, 0, 0],
-        // Mon
-        [45, 95, 180, 220, 280, 320, 240, 180, 120, 0],
-        // Tue
-        [52, 110, 210, 260, 340, 380, 290, 210, 140, 0],
-        // Wed
-        [68, 125, 240, 290, 390, 450, 380, 260, 165, 0],
-        // Thu
-        [72, 140, 280, 350, 520, 580, 490, 340, 210, 0],
-        // Fri
-        [95, 180, 340, 420, 620, 710, 580, 420, 280, 0],
-        // Sat
-        [180, 320, 480, 580, 820, 920, 780, 620, 480, 340]
+        [85, 120, 280, 320, 380, 420, 350, 280, 0],
+        [45, 95, 180, 220, 280, 320, 240, 180, 120],
+        [52, 110, 210, 260, 340, 380, 290, 210, 140],
+        [68, 125, 240, 290, 390, 450, 380, 260, 165],
+        [72, 135, 260, 310, 420, 480, 400, 290, 180],
+        [95, 160, 320, 380, 520, 580, 480, 360, 220],
+        [120, 180, 420, 480, 640, 720, 580, 420, 0]
       ]
     };
 
-    // Average hourly sales (across all days)
-    const hourlySales = [
-      { hour: '10am', avg: 82, peak: false },
-      { hour: '11am', avg: 156, peak: false },
-      { hour: '12pm', avg: 287, peak: false },
-      { hour: '1pm', avg: 349, peak: false },
-      { hour: '2pm', avg: 478, peak: true },
-      { hour: '3pm', avg: 540, peak: true },
-      { hour: '4pm', avg: 444, peak: true },
-      { hour: '5pm', avg: 330, peak: false },
-      { hour: '6pm', avg: 199, peak: false },
-      { hour: '7pm', avg: 49, peak: false }
+    const hourlyAvg = [
+      { hour: '10am', avg: 76 },
+      { hour: '11am', avg: 132 },
+      { hour: '12pm', avg: 273 },
+      { hour: '1pm', avg: 323 },
+      { hour: '2pm', avg: 424 },
+      { hour: '3pm', avg: 479 },
+      { hour: '4pm', avg: 388 },
+      { hour: '5pm', avg: 286 },
+      { hour: '6pm', avg: 118 }
     ];
 
-    // Render Functions
-    function renderTopSellers() {
-      const container = document.getElementById('topSellersBody');
-      container.innerHTML = topSellers.map(item => `
-        <div class="top-seller-item">
-          <div class="rank ${item.rank === 1 ? 'gold' : item.rank === 2 ? 'silver' : item.rank === 3 ? 'bronze' : ''}">${item.rank}</div>
-          <div class="top-seller-info">
-            <div class="top-seller-name">${item.name}</div>
-            <div class="top-seller-meta">${item.brand}</div>
-          </div>
-          <div class="top-seller-sales">
-            <div class="top-seller-units">${item.units} sold</div>
-            <div class="top-seller-revenue">$${item.revenue.toLocaleString()}</div>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function renderBrands() {
-      const container = document.getElementById('brandPerformanceBody');
-      container.innerHTML = brands.map(brand => `
-        <div class="brand-item">
-          <div class="brand-logo">${brand.name.substring(0, 2).toUpperCase()}</div>
-          <div class="brand-info">
-            <div class="brand-name">${brand.name}</div>
-            <div class="brand-bar-container">
-              <div class="brand-bar" style="width: ${brand.pct}%;"></div>
-            </div>
-          </div>
-          <div class="brand-stats">
-            <div class="brand-revenue">$${brand.revenue.toLocaleString()}</div>
-            <div class="brand-change ${brand.change >= 0 ? 'up' : 'down'}">${brand.change >= 0 ? '↑' : '↓'} ${Math.abs(brand.change)}%</div>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function renderDays() {
-      const container = document.getElementById('dayGrid');
-      container.innerHTML = dailySales.map(day => `
-        <div class="day-card ${day.best ? 'best' : ''}">
-          <div class="day-name">${day.day}</div>
-          <div class="day-revenue">$${(day.revenue / 1000).toFixed(1)}k</div>
-          <div class="day-transactions">${day.transactions} txns</div>
-        </div>
-      `).join('');
-    }
-
-    function renderCategories() {
-      const container = document.getElementById('categoryGrid');
-      container.innerHTML = categories.map(cat => `
-        <div class="category-item">
-          <div class="category-icon">${cat.icon}</div>
-          <div class="category-info">
-            <div class="category-name">${cat.name}</div>
-            <div class="category-revenue">$${cat.revenue.toLocaleString()}</div>
-          </div>
-          <div class="category-change ${cat.change >= 0 ? 'up' : 'down'}">${cat.change >= 0 ? '↑' : '↓'} ${Math.abs(cat.change)}%</div>
-        </div>
-      `).join('');
-    }
-
+    // Render heatmap
     function renderHeatmap() {
-      const container = document.getElementById('heatmapGrid');
+      const grid = document.getElementById('heatmapGrid');
       const maxVal = Math.max(...heatmapData.values.flat());
       
-      // Build header row
-      let html = '<div class="heatmap-day-label"></div>';
+      let html = '<div class="heatmap-header-cell"></div>';
       heatmapData.hours.forEach(hour => {
-        html += `<div class="heatmap-hour-label">${hour}</div>`;
+        html += `<div class="heatmap-header-cell">${hour}</div>`;
       });
-
-      // Build data rows
+      
       heatmapData.days.forEach((day, dayIndex) => {
-        html += `<div class="heatmap-day-label">${day}</div>`;
-        heatmapData.values[dayIndex].forEach((val, hourIndex) => {
-          const level = getHeatLevel(val, maxVal);
-          const isPeak = val === maxVal;
-          html += `<div class="heatmap-cell level-${level} ${isPeak ? 'peak' : ''}" title="${day} ${heatmapData.hours[hourIndex]}: $${val}">$${val}</div>`;
+        html += `<div class="heatmap-row-label">${day}</div>`;
+        heatmapData.values[dayIndex].forEach(val => {
+          let level = 'low';
+          if (val === 0) level = 'closed';
+          else if (val > maxVal * 0.7) level = 'peak';
+          else if (val > maxVal * 0.4) level = 'high';
+          else if (val > maxVal * 0.2) level = 'medium';
+          
+          const display = val === 0 ? '—' : '$' + val;
+          html += `<div class="heatmap-cell ${level}">${display}</div>`;
         });
       });
+      
+      grid.innerHTML = html;
+    }
 
+    // Render hourly bar chart
+    function renderHourlyChart() {
+      const container = document.getElementById('hourlyBarChart');
+      const maxAvg = Math.max(...hourlyAvg.map(h => h.avg));
+      
+      let html = '';
+      hourlyAvg.forEach(h => {
+        const heightPct = (h.avg / maxAvg) * 100;
+        let level = 'low';
+        if (h.avg > maxAvg * 0.8) level = 'peak';
+        else if (h.avg > maxAvg * 0.5) level = 'high';
+        else if (h.avg > maxAvg * 0.3) level = 'medium';
+        
+        html += `
+          <div class="hour-bar-container">
+            <div class="hour-value">$${h.avg}</div>
+            <div class="hour-bar ${level}" style="height: ${heightPct}%;"></div>
+            <div class="hour-label">${h.hour}</div>
+          </div>
+        `;
+      });
+      
       container.innerHTML = html;
     }
 
-    function getHeatLevel(value, max) {
-      if (value === 0) return 0;
-      const pct = value / max;
-      if (pct < 0.15) return 1;
-      if (pct < 0.25) return 2;
-      if (pct < 0.40) return 3;
-      if (pct < 0.55) return 4;
-      if (pct < 0.70) return 5;
-      if (pct < 0.85) return 6;
-      return 7;
-    }
-
-    function renderHourlyBarChart() {
-      const container = document.getElementById('hourlyBarChart');
-      const maxAvg = Math.max(...hourlySales.map(h => h.avg));
-
-      container.innerHTML = hourlySales.map(hour => {
-        const heightPct = (hour.avg / maxAvg) * 100;
-        const barClass = hour.avg < 100 ? 'low' : hour.peak ? 'peak' : '';
-        return `
-          <div class="hour-bar-container">
-            <div class="hour-bar ${barClass}" style="height: ${heightPct}%;">
-              <div class="hour-bar-value">$${hour.avg}</div>
+    // Render day grid
+    function renderDayGrid() {
+      const container = document.getElementById('dayGrid');
+      const maxRev = Math.max(...dailySales.map(d => d.revenue));
+      
+      let html = '';
+      dailySales.forEach(d => {
+        const widthPct = (d.revenue / maxRev) * 100;
+        html += `
+          <div class="time-row">
+            <div class="time-label">${d.day}</div>
+            <div class="time-bar-container">
+              <div class="time-bar ${d.best ? 'best' : 'regular'}" style="width: ${widthPct}%;">
+                $${d.revenue.toLocaleString()}
+              </div>
             </div>
-            <div class="hour-bar-label">${hour.hour}</div>
+            <div class="time-transactions">${d.transactions} txns</div>
           </div>
         `;
-      }).join('');
+      });
+      
+      container.innerHTML = html;
     }
 
-    function setDateRange(range) {
-      document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
-      // In real app, this would reload data for the selected range
+    // Render category grid
+    function renderCategoryGrid() {
+      const container = document.getElementById('categoryGrid');
+      
+      let html = '';
+      categories.forEach(c => {
+        const changeClass = c.change >= 0 ? 'up' : 'down';
+        const changeSymbol = c.change >= 0 ? '↑' : '↓';
+        html += `
+          <div class="category-row">
+            <div class="category-icon">${c.icon}</div>
+            <div class="category-info">
+              <div class="category-name">${c.name}</div>
+              <div class="category-revenue">$${c.revenue.toLocaleString()}</div>
+            </div>
+            <div class="category-change ${changeClass}">${changeSymbol} ${Math.abs(c.change)}%</div>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
     }
 
-    // Initial Render
-    renderTopSellers();
-    renderBrands();
-    renderDays();
-    renderCategories();
+    // Initialize
     renderHeatmap();
-    renderHourlyBarChart();
+    renderHourlyChart();
+    renderDayGrid();
+    renderCategoryGrid();
   </script>
 </body>
 </html>
