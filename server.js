@@ -986,11 +986,12 @@ app.post('/api/inventory/sync', async (req, res) => {
     console.log(`Found velocity for ${categoryVelocity.length} categories, ${vendorVelocity.length} vendors`);
     
     // ========== STEP 2: Get receive dates from item_receipts ==========
+    // Use MOST RECENT receipt date (if item was reordered, old stock likely sold)
     console.log('Getting receive dates from database...');
     const receiveDataResult = await pool.query(`
       SELECT 
         item_id,
-        MIN(received_date) as first_received,
+        MAX(received_date) as last_received,
         SUM(qty_received) as total_received,
         MAX(item_name) as item_name,
         MAX(category) as category,
@@ -1003,7 +1004,7 @@ app.post('/api/inventory/sync', async (req, res) => {
     const itemReceiveData = {};
     for (const row of receiveDataResult.rows) {
       itemReceiveData[row.item_id] = {
-        receivedDate: row.first_received,
+        receivedDate: row.last_received,
         qtyReceived: parseInt(row.total_received) || 0,
         name: row.item_name,
         category: row.category,
@@ -1778,11 +1779,12 @@ async function runNightlySync() {
       
       console.log(`Found velocity for ${categoryVelocity.length} categories, ${vendorVelocity.length} vendors`);
       
-      // Get EARLIEST receive date per item from item_receipts
+      // Get MOST RECENT receive date per item from item_receipts
+      // (if item was reordered, old stock likely sold already)
       const receiveDataResult = await pool.query(`
         SELECT 
           item_id,
-          MIN(received_date) as first_received,
+          MAX(received_date) as last_received,
           SUM(qty_received) as total_received,
           MAX(item_name) as item_name,
           MAX(category) as category,
@@ -1795,7 +1797,7 @@ async function runNightlySync() {
       const itemReceiveData = {};
       for (const row of receiveDataResult.rows) {
         itemReceiveData[row.item_id] = {
-          receivedDate: row.first_received,
+          receivedDate: row.last_received,
           qtyReceived: parseInt(row.total_received) || 0,
           name: row.item_name,
           category: row.category,
