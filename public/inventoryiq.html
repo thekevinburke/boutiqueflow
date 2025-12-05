@@ -96,6 +96,11 @@
     .empty-state h3 { font-size: 1.25rem; margin-bottom: 8px; }
     .empty-state p { color: #888; }
 
+    .velocity-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
+    .toggle-btn { padding: 6px 14px; border: 1px solid #e0e0e0; background: #fff; border-radius: 16px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+    .toggle-btn:hover { background: #f5f5f5; }
+    .toggle-btn.active { background: #e91e8a; color: white; border-color: #e91e8a; }
+
     @media (max-width: 900px) {
       .health-metrics, .stats-row { grid-template-columns: repeat(2, 1fr); }
       .velocity-section { grid-template-columns: 1fr; }
@@ -158,15 +163,23 @@
     <div class="velocity-section">
       <div class="velocity-card">
         <div class="velocity-title">
-          <span>📦</span> Sell-Through by Category
+          <span>📦</span> <span id="categoryTitle">Fastest Selling Categories</span>
           <button class="info-btn">ⓘ<span class="tooltip">Average days from when you receive items in this category to when they sell. Lower = faster selling. Helps identify which product types move quickest.</span></button>
+        </div>
+        <div class="velocity-toggle">
+          <button class="toggle-btn active" id="catFastest" onclick="toggleVelocity('category', 'fastest')">Fastest</button>
+          <button class="toggle-btn" id="catSlowest" onclick="toggleVelocity('category', 'slowest')">Slowest</button>
         </div>
         <div class="velocity-list" id="categoryVelocity"><div class="loading">Loading...</div></div>
       </div>
       <div class="velocity-card">
         <div class="velocity-title">
-          <span>🏷️</span> Sell-Through by Vendor
+          <span>🏷️</span> <span id="vendorTitle">Fastest Selling Vendors</span>
           <button class="info-btn">ⓘ<span class="tooltip">Average days from receipt to sale by vendor. Shows which vendors' products sell fastest. Use this to guide future buying decisions.</span></button>
+        </div>
+        <div class="velocity-toggle">
+          <button class="toggle-btn active" id="venFastest" onclick="toggleVelocity('vendor', 'fastest')">Fastest</button>
+          <button class="toggle-btn" id="venSlowest" onclick="toggleVelocity('vendor', 'slowest')">Slowest</button>
         </div>
         <div class="velocity-list" id="vendorVelocity"><div class="loading">Loading...</div></div>
       </div>
@@ -270,18 +283,50 @@
       el.classList.add(val <= good ? 'good' : val <= warn ? 'warning' : 'danger');
     }
 
+    let categoryView = 'fastest';
+    let vendorView = 'fastest';
+
+    function toggleVelocity(type, view) {
+      if (type === 'category') {
+        categoryView = view;
+        document.getElementById('catFastest').classList.toggle('active', view === 'fastest');
+        document.getElementById('catSlowest').classList.toggle('active', view === 'slowest');
+        document.getElementById('categoryTitle').textContent = view === 'fastest' ? 'Fastest Selling Categories' : 'Slowest Selling Categories';
+      } else {
+        vendorView = view;
+        document.getElementById('venFastest').classList.toggle('active', view === 'fastest');
+        document.getElementById('venSlowest').classList.toggle('active', view === 'slowest');
+        document.getElementById('vendorTitle').textContent = view === 'fastest' ? 'Fastest Selling Vendors' : 'Slowest Selling Vendors';
+      }
+      renderVelocity();
+    }
+
     function renderVelocity() {
       if (!inventoryData?.velocity) return;
-      const catHtml = inventoryData.velocity.byCategory.slice(0,10).map((c,i) => {
+      
+      // Category velocity
+      let catData = [...inventoryData.velocity.byCategory];
+      if (categoryView === 'slowest') {
+        catData = catData.sort((a,b) => b.avgDaysToSell - a.avgDaysToSell).slice(0,10);
+      } else {
+        catData = catData.slice(0,10);
+      }
+      const catHtml = catData.map((c,i) => {
         const speed = c.avgDaysToSell <= 30 ? 'fast' : c.avgDaysToSell >= 60 ? 'slow' : '';
-        const rank = i < 3 ? 'fast' : i >= 7 ? 'slow' : '';
-        return '<div class="velocity-item"><div class="velocity-rank '+rank+'">'+(i+1)+'</div><div class="velocity-info"><div class="velocity-name">'+c.name+'</div><div class="velocity-meta">'+c.itemsSold+' items sold</div></div><div class="velocity-days '+speed+'">'+c.avgDaysToSell+' days</div></div>';
+        return '<div class="velocity-item"><div class="velocity-rank">'+(i+1)+'</div><div class="velocity-info"><div class="velocity-name">'+c.name+'</div><div class="velocity-meta">'+c.itemsSold+' items sold</div></div><div class="velocity-days '+speed+'">'+c.avgDaysToSell+' days</div></div>';
       }).join('');
       document.getElementById('categoryVelocity').innerHTML = catHtml || '<p style="color:#888">Not enough data yet</p>';
-      const venHtml = inventoryData.velocity.byVendor.slice(0,10).map((v,i) => {
+      
+      // Vendor velocity
+      let venData = [...inventoryData.velocity.byVendor];
+      if (vendorView === 'slowest') {
+        venData = venData.sort((a,b) => b.avgDaysToSell - a.avgDaysToSell).slice(0,10);
+      } else {
+        venData = venData.slice(0,10);
+      }
+      const venHtml = venData.map((v,i) => {
         const speed = v.avgDaysToSell <= 30 ? 'fast' : v.avgDaysToSell >= 60 ? 'slow' : '';
-        const rank = i < 3 ? 'fast' : i >= 7 ? 'slow' : '';
-        return '<div class="velocity-item"><div class="velocity-rank '+rank+'">'+(i+1)+'</div><div class="velocity-info"><div class="velocity-name">'+v.name+'</div><div class="velocity-meta">'+v.itemsSold+' items sold</div></div><div class="velocity-days '+speed+'">'+v.avgDaysToSell+' days</div></div>';
+        return '<div class="velocity-item"><div class="velocity-rank">'+(i+1)+'</div><div class="velocity-info"><div class="velocity-name">'+v.name+'</div><div class="velocity-meta">'+v.itemsSold+' items sold</div></div><div class="velocity-days '+speed+'">'+v.avgDaysToSell+' days</div></div>';
       }).join('');
       document.getElementById('vendorVelocity').innerHTML = venHtml || '<p style="color:#888">Not enough data yet</p>';
     }
