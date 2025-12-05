@@ -140,12 +140,18 @@ async function initDatabase() {
         qty_received INTEGER DEFAULT 0,
         unit_cost DECIMAL(10,2),
         item_name VARCHAR(255),
+        item_color VARCHAR(100),
+        item_size VARCHAR(50),
         category VARCHAR(100),
         vendor VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(item_id, receipt_id)
       )
     `);
+    
+    // Add columns if they don't exist (for existing installations)
+    await pool.query(`ALTER TABLE item_receipts ADD COLUMN IF NOT EXISTS item_color VARCHAR(100)`);
+    await pool.query(`ALTER TABLE item_receipts ADD COLUMN IF NOT EXISTS item_size VARCHAR(50)`);
     
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_item_receipts_item ON item_receipts(item_id);
@@ -992,6 +998,8 @@ app.post('/api/inventory/sync', async (req, res) => {
         MAX(received_date) as last_received,
         SUM(qty_received) as total_received,
         MAX(item_name) as item_name,
+        MAX(item_color) as item_color,
+        MAX(item_size) as item_size,
         MAX(category) as category,
         MAX(vendor) as vendor,
         MAX(unit_cost) as unit_cost
@@ -1001,10 +1009,15 @@ app.post('/api/inventory/sync', async (req, res) => {
     
     const itemReceiveData = {};
     for (const row of receiveDataResult.rows) {
+      // Build display name: "Style Name - Color - Size" (omit empty parts)
+      const nameParts = [row.item_name];
+      if (row.item_color) nameParts.push(row.item_color);
+      if (row.item_size) nameParts.push(row.item_size);
+      
       itemReceiveData[row.item_id] = {
         receivedDate: row.last_received,
         qtyReceived: parseInt(row.total_received) || 0,
-        name: row.item_name,
+        name: nameParts.join(' - '),
         category: row.category,
         vendor: row.vendor,
         cost: parseFloat(row.unit_cost) || 0
@@ -1680,12 +1693,16 @@ async function runNightlySync() {
             
             // Get item details
             let itemName = 'Unknown Item';
+            let itemColor = '';
+            let itemSize = '';
             let category = 'Uncategorized';
             let vendor = 'Unknown';
             
             try {
               const item = await heartlandRequest(`/items/${line.item_id}`);
               itemName = item.custom?.style_name || item.description || 'Unknown Item';
+              itemColor = item.custom?.color_name || item.custom?.Color_Name || '';
+              itemSize = item.custom?.size || item.custom?.Size || '';
               category = item.custom?.category || item.custom?.Category || 'Uncategorized';
               if (item.primary_vendor_id) {
                 vendor = await getVendorName(item.primary_vendor_id);
@@ -1696,14 +1713,16 @@ async function runNightlySync() {
             
             // Upsert into item_receipts
             await pool.query(`
-              INSERT INTO item_receipts (item_id, receipt_id, received_date, qty_received, unit_cost, item_name, category, vendor)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+              INSERT INTO item_receipts (item_id, receipt_id, received_date, qty_received, unit_cost, item_name, item_color, item_size, category, vendor)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
               ON CONFLICT (item_id, receipt_id)
               DO UPDATE SET 
                 received_date = EXCLUDED.received_date,
                 qty_received = EXCLUDED.qty_received,
                 unit_cost = EXCLUDED.unit_cost,
                 item_name = EXCLUDED.item_name,
+                item_color = EXCLUDED.item_color,
+                item_size = EXCLUDED.item_size,
                 category = EXCLUDED.category,
                 vendor = EXCLUDED.vendor
             `, [
@@ -1713,6 +1732,8 @@ async function runNightlySync() {
               line.qty || 0,
               line.unit_cost || 0,
               itemName,
+              itemColor,
+              itemSize,
               category,
               vendor
             ]);
@@ -1816,6 +1837,8 @@ async function runNightlySync() {
           MAX(received_date) as last_received,
           SUM(qty_received) as total_received,
           MAX(item_name) as item_name,
+          MAX(item_color) as item_color,
+          MAX(item_size) as item_size,
           MAX(category) as category,
           MAX(vendor) as vendor,
           MAX(unit_cost) as unit_cost
@@ -1825,10 +1848,15 @@ async function runNightlySync() {
       
       const itemReceiveData = {};
       for (const row of receiveDataResult.rows) {
+        // Build display name: "Style Name - Color - Size" (omit empty parts)
+        const nameParts = [row.item_name];
+        if (row.item_color) nameParts.push(row.item_color);
+        if (row.item_size) nameParts.push(row.item_size);
+        
         itemReceiveData[row.item_id] = {
           receivedDate: row.last_received,
           qtyReceived: parseInt(row.total_received) || 0,
-          name: row.item_name,
+          name: nameParts.join(' - '),
           category: row.category,
           vendor: row.vendor,
           cost: parseFloat(row.unit_cost) || 0
