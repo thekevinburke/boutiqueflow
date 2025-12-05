@@ -47,7 +47,7 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS sales_transactions (
         id SERIAL PRIMARY KEY,
         heartland_ticket_id VARCHAR(50) NOT NULL,
-        heartland_line_id VARCHAR(50),
+        heartland_line_id VARCHAR(50) DEFAULT '0',
         customer_id VARCHAR(50),
         item_id VARCHAR(50),
         transaction_date TIMESTAMP NOT NULL,
@@ -63,7 +63,7 @@ async function initDatabase() {
         item_size VARCHAR(50),
         item_color VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(heartland_ticket_id, COALESCE(heartland_line_id, '0'))
+        UNIQUE(heartland_ticket_id, heartland_line_id)
       )
     `);
     
@@ -1271,14 +1271,14 @@ async function runNightlySync() {
                  transaction_date, day_of_week, hour_of_day, quantity, unit_price, 
                  total_amount, category, vendor, brand, item_name, item_size, item_color)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-              ON CONFLICT (heartland_ticket_id, COALESCE(heartland_line_id, '0'))
+              ON CONFLICT (heartland_ticket_id, heartland_line_id)
               DO UPDATE SET
                 customer_id = EXCLUDED.customer_id,
                 quantity = EXCLUDED.quantity,
                 total_amount = EXCLUDED.total_amount
             `, [
               ticket.id.toString(),
-              line.id?.toString() || null,
+              line.id?.toString() || '0',
               ticket.customer_id?.toString() || null,
               line.item_id?.toString(),
               transactionDate,
