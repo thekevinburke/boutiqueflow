@@ -873,86 +873,150 @@ app.get('/api/inventory/data', async (req, res) => {
   }
 });
 
-// Sync inventory data (heavy calculation - run nightly or manually)
+// Sync inventory data - now uses database for velocity, only API for current stock
 app.post('/api/inventory/sync', async (req, res) => {
-  // Set a long timeout for this endpoint
-  req.setTimeout(120000); // 2 minutes
+  req.setTimeout(180000); // 3 minutes
   
   try {
-    console.log('Starting inventory sync...');
+    console.log('Starting inventory sync (database-powered)...');
     const startTime = Date.now();
+    const now = new Date();
     
-    // ========== STEP 1: Get receipts and build item receive dates ==========
-    console.log('Fetching receipts...');
-    const sixMonthsAgo = new Date(Date.now() - 180*24*60*60*1000).toISOString().split('T')[0];
-    const receiptsData = await heartlandRequest(`/purchasing/receipts?per_page=100&_filter[created_at][$gte]=${sixMonthsAgo}&_filter[status]=complete`);
-    console.log(`Found ${receiptsData.results?.length || 0} receipts`);
+    // ========== STEP 1: Calculate velocity from sales_transactions table ==========
+    console.log('Calculating velocity from database...');
     
-    // Map item_id -> { receiveDate, vendor_id }
-    const itemReceiveInfo = {};
-    let receiptCount = 0;
-    for (const receipt of (receiptsData.results || []).slice(0, 75)) { // 75 receipts
+    // Get category velocity (avg days between transactions per category)
+    const categoryVelocityResult = await pool.query(`
+      WITH category_sales AS (
+        SELECT 
+          category,
+          item_id,
+          MIN(transaction_date) as first_sale,
+          MAX(transaction_date) as last_sale,
+          COUNT(*) as sale_count,
+          SUM(quantity) as total_qty
+        FROM sales_transactions
+        WHERE category IS NOT NULL 
+          AND category != 'Uncategorized'
+          AND transaction_date > NOW() - INTERVAL '180 days'
+        GROUP BY category, item_id
+        HAVING COUNT(*) >= 1
+      )
+      SELECT 
+        category as name,
+        COUNT(DISTINCT item_id) as items_sold,
+        ROUND(AVG(EXTRACT(EPOCH FROM (last_sale - first_sale)) / 86400))::int as avg_days_to_sell
+      FROM category_sales
+      WHERE first_sale != last_sale
+      GROUP BY category
+      HAVING COUNT(DISTINCT item_id) >= 3
+      ORDER BY avg_days_to_sell ASC
+      LIMIT 10
+    `);
+    
+    // Get vendor velocity
+    const vendorVelocityResult = await pool.query(`
+      WITH vendor_sales AS (
+        SELECT 
+          vendor,
+          item_id,
+          MIN(transaction_date) as first_sale,
+          MAX(transaction_date) as last_sale,
+          COUNT(*) as sale_count,
+          SUM(quantity) as total_qty
+        FROM sales_transactions
+        WHERE vendor IS NOT NULL 
+          AND vendor != 'Unknown'
+          AND transaction_date > NOW() - INTERVAL '180 days'
+        GROUP BY vendor, item_id
+        HAVING COUNT(*) >= 1
+      )
+      SELECT 
+        vendor as name,
+        COUNT(DISTINCT item_id) as items_sold,
+        ROUND(AVG(EXTRACT(EPOCH FROM (last_sale - first_sale)) / 86400))::int as avg_days_to_sell
+      FROM vendor_sales
+      WHERE first_sale != last_sale
+      GROUP BY vendor
+      HAVING COUNT(DISTINCT item_id) >= 3
+      ORDER BY avg_days_to_sell ASC
+      LIMIT 10
+    `);
+    
+    const categoryVelocity = categoryVelocityResult.rows.map(r => ({
+      name: r.name,
+      avgDaysToSell: parseInt(r.avg_days_to_sell) || 0,
+      itemsSold: parseInt(r.items_sold)
+    })).filter(v => v.avgDaysToSell > 0);
+    
+    const vendorVelocity = vendorVelocityResult.rows.map(r => ({
+      name: r.name,
+      avgDaysToSell: parseInt(r.avg_days_to_sell) || 0,
+      itemsSold: parseInt(r.items_sold)
+    })).filter(v => v.avgDaysToSell > 0);
+    
+    console.log(`Found velocity for ${categoryVelocity.length} categories, ${vendorVelocity.length} vendors`);
+    
+    // ========== STEP 2: Get last sale date per item from database ==========
+    console.log('Getting last sale dates from database...');
+    const lastSalesResult = await pool.query(`
+      SELECT 
+        item_id,
+        item_name,
+        category,
+        vendor,
+        MAX(transaction_date) as last_sale_date,
+        MAX(unit_price) as price
+      FROM sales_transactions
+      WHERE item_id IS NOT NULL
+      GROUP BY item_id, item_name, category, vendor
+    `);
+    
+    const itemLastSales = {};
+    for (const row of lastSalesResult.rows) {
+      itemLastSales[row.item_id] = {
+        lastSaleDate: row.last_sale_date,
+        name: row.item_name,
+        category: row.category,
+        vendor: row.vendor,
+        price: parseFloat(row.price) || 0
+      };
+    }
+    console.log(`Found last sale data for ${Object.keys(itemLastSales).length} items`);
+    
+    // ========== STEP 3: Get current inventory from Heartland API ==========
+    console.log('Fetching current inventory from Heartland...');
+    
+    // Fetch all inventory pages
+    let allInventory = [];
+    let page = 1;
+    let hasMore = true;
+    
+    while (hasMore && page <= 10) { // Max 10 pages = 1000 items
       try {
-        const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=75`);
-        const receiveDate = receipt.completed_at || receipt.created_at;
-        for (const line of lines.results || []) {
-          if (line.item_id) {
-            if (!itemReceiveInfo[line.item_id] || receiveDate < itemReceiveInfo[line.item_id].receiveDate) {
-              itemReceiveInfo[line.item_id] = {
-                receiveDate: receiveDate,
-                category: line.item_custom?.category || line.item_custom?.Category || '',
-                vendor: null
-              };
-            }
-          }
-        }
-        receiptCount++;
-        if (receiptCount % 25 === 0) {
-          console.log(`Processed ${receiptCount} receipts...`);
-        }
+        const inventoryData = await heartlandRequest(`/inventory/values?group[]=item_id&per_page=100&page=${page}`);
+        const results = inventoryData.results || [];
+        allInventory = allInventory.concat(results);
+        hasMore = results.length === 100;
+        page++;
       } catch (e) {
-        console.error(`Error fetching receipt ${receipt.id} lines:`, e.message);
+        console.error(`Error fetching inventory page ${page}:`, e.message);
+        hasMore = false;
       }
     }
-    console.log(`Processed ${receiptCount} receipts, mapped ${Object.keys(itemReceiveInfo).length} items`);
+    console.log(`Found ${allInventory.length} inventory items from Heartland`);
     
-    // ========== STEP 2: Get sales data ==========
-    console.log('Fetching sales data...');
-    const salesData = await heartlandRequest('/reporting/sales?per_page=750');
-    console.log(`Found ${salesData.results?.length || 0} sales records`);
+    // ========== STEP 4: Get item details for items we don't have in sales ==========
+    console.log('Fetching missing item details...');
+    const missingItemIds = allInventory
+      .filter(inv => inv.qty_on_hand > 0 && !itemLastSales[inv.item_id])
+      .map(inv => inv.item_id)
+      .slice(0, 200); // Limit API calls
     
-    // Map item_id -> array of sale records
-    const itemSales = {};
-    for (const sale of salesData.results || []) {
-      if (sale.item_id && sale.net_qty_sold > 0) {
-        if (!itemSales[sale.item_id]) {
-          itemSales[sale.item_id] = [];
-        }
-        itemSales[sale.item_id].push({
-          date: sale.datetime,
-          qty: sale.net_qty_sold,
-          revenue: sale.net_sales
-        });
-      }
-    }
+    const itemDetails = { ...itemLastSales };
+    let fetchedCount = 0;
     
-    // ========== STEP 3: Get current inventory ==========
-    console.log('Fetching inventory...');
-    const inventoryData = await heartlandRequest('/inventory/values?group[]=item_id&per_page=300');
-    console.log(`Found ${inventoryData.results?.length || 0} inventory items`);
-    
-    // ========== STEP 4: Get item details for categorization ==========
-    console.log('Fetching item details...');
-    const itemDetails = {};
-    
-    // Prioritize items that are in inventory (more relevant)
-    const inventoryItemIds = (inventoryData.results || [])
-      .map(i => i.item_id?.toString())
-      .filter(Boolean);
-    
-    let itemCount = 0;
-    for (const itemId of inventoryItemIds) {
-      if (itemCount >= 150) break; // 150 items
+    for (const itemId of missingItemIds) {
       try {
         const item = await heartlandRequest(`/items/${itemId}`);
         let vendorName = 'Unknown';
@@ -963,109 +1027,49 @@ app.post('/api/inventory/sync', async (req, res) => {
           name: item.custom?.style_name || item.description || 'Unknown',
           category: item.custom?.category || item.custom?.Category || 'Uncategorized',
           vendor: vendorName,
+          price: item.price || 0,
           cost: item.cost || 0,
-          price: item.price || 0
+          lastSaleDate: null // Never sold
         };
-        itemCount++;
-        if (itemCount % 20 === 0) {
-          console.log(`Fetched ${itemCount} item details...`);
+        fetchedCount++;
+        if (fetchedCount % 50 === 0) {
+          console.log(`Fetched ${fetchedCount}/${missingItemIds.length} missing item details...`);
         }
       } catch (e) {
         // Skip items that can't be fetched
       }
     }
-    console.log(`Fetched details for ${itemCount} items`);
+    console.log(`Fetched details for ${fetchedCount} items not in sales history`);
     
-    // ========== STEP 5: Calculate sell-through velocity ==========
-    const now = new Date();
-    const velocityByCategory = {};
-    const velocityByVendor = {};
-    
-    // For each item that has both receive date and sales
-    for (const [itemId, sales] of Object.entries(itemSales)) {
-      const receiveInfo = itemReceiveInfo[itemId];
-      const details = itemDetails[itemId];
-      
-      if (!receiveInfo || !details) continue;
-      
-      const receiveDate = new Date(receiveInfo.receiveDate);
-      
-      // Calculate days to first sale
-      const firstSale = sales.sort((a, b) => new Date(a.date) - new Date(b.date))[0];
-      const daysToSell = Math.floor((new Date(firstSale.date) - receiveDate) / (1000 * 60 * 60 * 24));
-      
-      if (daysToSell < 0 || daysToSell > 365) continue; // Skip bad data
-      
-      const category = details.category;
-      const vendor = details.vendor;
-      
-      // Aggregate by category
-      if (!velocityByCategory[category]) {
-        velocityByCategory[category] = { totalDays: 0, count: 0, items: [] };
-      }
-      velocityByCategory[category].totalDays += daysToSell;
-      velocityByCategory[category].count++;
-      
-      // Aggregate by vendor
-      if (!velocityByVendor[vendor]) {
-        velocityByVendor[vendor] = { totalDays: 0, count: 0, items: [] };
-      }
-      velocityByVendor[vendor].totalDays += daysToSell;
-      velocityByVendor[vendor].count++;
-    }
-    
-    // Calculate averages and format
-    const categoryVelocity = Object.entries(velocityByCategory)
-      .map(([name, data]) => ({
-        name,
-        avgDaysToSell: Math.round(data.totalDays / data.count),
-        itemsSold: data.count
-      }))
-      .filter(c => c.itemsSold >= 3) // Only include categories with enough data
-      .sort((a, b) => a.avgDaysToSell - b.avgDaysToSell);
-    
-    const vendorVelocity = Object.entries(velocityByVendor)
-      .map(([name, data]) => ({
-        name,
-        avgDaysToSell: Math.round(data.totalDays / data.count),
-        itemsSold: data.count
-      }))
-      .filter(v => v.itemsSold >= 3) // Only include vendors with enough data
-      .sort((a, b) => a.avgDaysToSell - b.avgDaysToSell);
-    
-    // ========== STEP 6: Calculate dead stock ==========
+    // ========== STEP 5: Calculate dead stock ==========
+    console.log('Calculating dead stock...');
     const deadStockItems = [];
     let total60Days = 0, total90Days = 0, total120Days = 0;
     let value60Days = 0, value90Days = 0, value120Days = 0;
     
-    for (const inv of inventoryData.results || []) {
+    for (const inv of allInventory) {
       if (!inv.item_id) continue;
       const qty = inv.qty_on_hand || 0;
       if (qty <= 0) continue;
       
       const details = itemDetails[inv.item_id];
-      const receiveInfo = itemReceiveInfo[inv.item_id];
-      const sales = itemSales[inv.item_id];
-      
       if (!details) continue;
       
-      // Calculate days stagnant
+      // Calculate days stagnant since last sale
       let daysStagnant = 0;
       let lastSaleDate = null;
       
-      if (sales && sales.length > 0) {
-        const lastSale = sales.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
-        lastSaleDate = lastSale.date;
-        daysStagnant = Math.floor((now - new Date(lastSaleDate)) / (1000 * 60 * 60 * 24));
-      } else if (receiveInfo) {
-        daysStagnant = Math.floor((now - new Date(receiveInfo.receiveDate)) / (1000 * 60 * 60 * 24));
+      if (details.lastSaleDate) {
+        lastSaleDate = new Date(details.lastSaleDate);
+        daysStagnant = Math.floor((now - lastSaleDate) / (1000 * 60 * 60 * 24));
       } else {
-        continue;
+        // Item has never sold - use a high value
+        daysStagnant = 180;
       }
       
       if (daysStagnant < 60) continue;
       
-      const cost = details.cost || inv.unit_cost || 0;
+      const cost = details.cost || inv.unit_cost || (details.price * 0.4) || 0;
       const value = qty * cost;
       
       let suggestedMarkdown = '20% off';
@@ -1084,21 +1088,22 @@ app.post('/api/inventory/sync', async (req, res) => {
       
       deadStockItems.push({
         id: inv.item_id,
-        name: details.name,
-        category: details.category,
-        vendor: details.vendor,
+        name: details.name || 'Unknown Item',
+        category: details.category || 'Uncategorized',
+        vendor: details.vendor || 'Unknown',
         qty: qty,
-        price: details.price,
+        price: details.price || 0,
         value: Math.round(value * 100) / 100,
         daysStagnant: daysStagnant,
-        lastSaleDate: lastSaleDate ? lastSaleDate.split('T')[0] : null,
+        lastSaleDate: lastSaleDate ? lastSaleDate.toISOString().split('T')[0] : null,
         suggestedMarkdown: suggestedMarkdown
       });
     }
     
     deadStockItems.sort((a, b) => b.daysStagnant - a.daysStagnant);
+    console.log(`Found ${deadStockItems.length} dead stock items`);
     
-    // ========== STEP 7: Save to cache ==========
+    // ========== STEP 6: Save to cache ==========
     const analysisData = {
       deadStock: {
         summary: {
@@ -1111,16 +1116,16 @@ app.post('/api/inventory/sync', async (req, res) => {
           totalItems: total60Days + total90Days + total120Days,
           totalValue: Math.round((value60Days + value90Days + value120Days) * 100) / 100,
         },
-        items: deadStockItems.slice(0, 100) // Limit to top 100
+        items: deadStockItems.slice(0, 200) // Top 200 dead stock items
       },
       velocity: {
         byCategory: categoryVelocity,
         byVendor: vendorVelocity
       },
       stats: {
-        totalItemsAnalyzed: itemCount,
-        totalReceipts: receiptsData.results?.length || 0,
-        totalSalesRecords: salesData.results?.length || 0
+        totalItemsAnalyzed: allInventory.length,
+        totalItemsWithSalesHistory: Object.keys(itemLastSales).length,
+        totalDeadStockItems: deadStockItems.length
       }
     };
     
@@ -1528,7 +1533,262 @@ async function runNightlySync() {
     
     console.log('SalesIQ data cached');
     
-    // ========== STEP 5: Complete ==========
+    // ========== STEP 5: Sync InventoryIQ data ==========
+    console.log('Step 5: Syncing InventoryIQ data...');
+    
+    try {
+      // Calculate velocity from sales_transactions
+      const categoryVelocityResult = await pool.query(`
+        WITH category_sales AS (
+          SELECT 
+            category,
+            item_id,
+            MIN(transaction_date) as first_sale,
+            MAX(transaction_date) as last_sale,
+            COUNT(*) as sale_count
+          FROM sales_transactions
+          WHERE category IS NOT NULL 
+            AND category != 'Uncategorized'
+            AND transaction_date > NOW() - INTERVAL '180 days'
+          GROUP BY category, item_id
+          HAVING COUNT(*) >= 1
+        )
+        SELECT 
+          category as name,
+          COUNT(DISTINCT item_id) as items_sold,
+          ROUND(AVG(EXTRACT(EPOCH FROM (last_sale - first_sale)) / 86400))::int as avg_days_to_sell
+        FROM category_sales
+        WHERE first_sale != last_sale
+        GROUP BY category
+        HAVING COUNT(DISTINCT item_id) >= 3
+        ORDER BY avg_days_to_sell ASC
+        LIMIT 10
+      `);
+      
+      const vendorVelocityResult = await pool.query(`
+        WITH vendor_sales AS (
+          SELECT 
+            vendor,
+            item_id,
+            MIN(transaction_date) as first_sale,
+            MAX(transaction_date) as last_sale
+          FROM sales_transactions
+          WHERE vendor IS NOT NULL 
+            AND vendor != 'Unknown'
+            AND transaction_date > NOW() - INTERVAL '180 days'
+          GROUP BY vendor, item_id
+          HAVING COUNT(*) >= 1
+        )
+        SELECT 
+          vendor as name,
+          COUNT(DISTINCT item_id) as items_sold,
+          ROUND(AVG(EXTRACT(EPOCH FROM (last_sale - first_sale)) / 86400))::int as avg_days_to_sell
+        FROM vendor_sales
+        WHERE first_sale != last_sale
+        GROUP BY vendor
+        HAVING COUNT(DISTINCT item_id) >= 3
+        ORDER BY avg_days_to_sell ASC
+        LIMIT 10
+      `);
+      
+      const categoryVelocity = categoryVelocityResult.rows
+        .map(r => ({
+          name: r.name,
+          avgDaysToSell: parseInt(r.avg_days_to_sell) || 0,
+          itemsSold: parseInt(r.items_sold)
+        }))
+        .filter(v => v.avgDaysToSell > 0);
+      
+      const vendorVelocity = vendorVelocityResult.rows
+        .map(r => ({
+          name: r.name,
+          avgDaysToSell: parseInt(r.avg_days_to_sell) || 0,
+          itemsSold: parseInt(r.items_sold)
+        }))
+        .filter(v => v.avgDaysToSell > 0);
+      
+      console.log(`Found velocity for ${categoryVelocity.length} categories, ${vendorVelocity.length} vendors`);
+      
+      // Get last sale date per item from database
+      const lastSalesResult = await pool.query(`
+        SELECT 
+          item_id,
+          item_name,
+          category,
+          vendor,
+          MAX(transaction_date) as last_sale_date,
+          MAX(unit_price) as price
+        FROM sales_transactions
+        WHERE item_id IS NOT NULL
+        GROUP BY item_id, item_name, category, vendor
+      `);
+      
+      const itemLastSales = {};
+      for (const row of lastSalesResult.rows) {
+        itemLastSales[row.item_id] = {
+          lastSaleDate: row.last_sale_date,
+          name: row.item_name,
+          category: row.category,
+          vendor: row.vendor,
+          price: parseFloat(row.price) || 0
+        };
+      }
+      console.log(`Found last sale data for ${Object.keys(itemLastSales).length} items`);
+      
+      // Get current inventory from Heartland (paginated)
+      let allInventory = [];
+      let page = 1;
+      let hasMore = true;
+      
+      while (hasMore && page <= 20) { // More pages for nightly sync
+        try {
+          const inventoryData = await heartlandRequest(`/inventory/values?group[]=item_id&per_page=100&page=${page}`);
+          const results = inventoryData.results || [];
+          allInventory = allInventory.concat(results);
+          hasMore = results.length === 100;
+          page++;
+        } catch (e) {
+          console.error(`Error fetching inventory page ${page}:`, e.message);
+          hasMore = false;
+        }
+      }
+      console.log(`Found ${allInventory.length} inventory items from Heartland`);
+      
+      // Get details for items not in sales history
+      const missingItemIds = allInventory
+        .filter(inv => inv.qty_on_hand > 0 && !itemLastSales[inv.item_id])
+        .map(inv => inv.item_id)
+        .slice(0, 500); // Higher limit for nightly
+      
+      const itemDetails = { ...itemLastSales };
+      let fetchedCount = 0;
+      
+      for (const itemId of missingItemIds) {
+        try {
+          const item = await heartlandRequest(`/items/${itemId}`);
+          let vendorName = 'Unknown';
+          if (item.primary_vendor_id) {
+            vendorName = await getVendorName(item.primary_vendor_id);
+          }
+          itemDetails[itemId] = {
+            name: item.custom?.style_name || item.description || 'Unknown',
+            category: item.custom?.category || item.custom?.Category || 'Uncategorized',
+            vendor: vendorName,
+            price: item.price || 0,
+            cost: item.cost || 0,
+            lastSaleDate: null
+          };
+          fetchedCount++;
+          if (fetchedCount % 100 === 0) {
+            console.log(`Fetched ${fetchedCount}/${missingItemIds.length} missing item details...`);
+          }
+        } catch (e) {
+          // Skip
+        }
+      }
+      console.log(`Fetched details for ${fetchedCount} items not in sales history`);
+      
+      // Calculate dead stock
+      const now = new Date();
+      const deadStockItems = [];
+      let total60Days = 0, total90Days = 0, total120Days = 0;
+      let value60Days = 0, value90Days = 0, value120Days = 0;
+      
+      for (const inv of allInventory) {
+        if (!inv.item_id) continue;
+        const qty = inv.qty_on_hand || 0;
+        if (qty <= 0) continue;
+        
+        const details = itemDetails[inv.item_id];
+        if (!details) continue;
+        
+        let daysStagnant = 0;
+        let lastSaleDate = null;
+        
+        if (details.lastSaleDate) {
+          lastSaleDate = new Date(details.lastSaleDate);
+          daysStagnant = Math.floor((now - lastSaleDate) / (1000 * 60 * 60 * 24));
+        } else {
+          daysStagnant = 180;
+        }
+        
+        if (daysStagnant < 60) continue;
+        
+        const cost = details.cost || inv.unit_cost || (details.price * 0.4) || 0;
+        const value = qty * cost;
+        
+        let suggestedMarkdown = '20% off';
+        if (daysStagnant >= 120) {
+          suggestedMarkdown = '40% off';
+          total120Days++;
+          value120Days += value;
+        } else if (daysStagnant >= 90) {
+          suggestedMarkdown = '30% off';
+          total90Days++;
+          value90Days += value;
+        } else {
+          total60Days++;
+          value60Days += value;
+        }
+        
+        deadStockItems.push({
+          id: inv.item_id,
+          name: details.name || 'Unknown Item',
+          category: details.category || 'Uncategorized',
+          vendor: details.vendor || 'Unknown',
+          qty: qty,
+          price: details.price || 0,
+          value: Math.round(value * 100) / 100,
+          daysStagnant: daysStagnant,
+          lastSaleDate: lastSaleDate ? lastSaleDate.toISOString().split('T')[0] : null,
+          suggestedMarkdown: suggestedMarkdown
+        });
+      }
+      
+      deadStockItems.sort((a, b) => b.daysStagnant - a.daysStagnant);
+      console.log(`Found ${deadStockItems.length} dead stock items`);
+      
+      // Save to cache
+      const inventoryAnalysis = {
+        deadStock: {
+          summary: {
+            items60Days: total60Days,
+            items90Days: total90Days,
+            items120Days: total120Days,
+            value60Days: Math.round(value60Days * 100) / 100,
+            value90Days: Math.round(value90Days * 100) / 100,
+            value120Days: Math.round(value120Days * 100) / 100,
+            totalItems: total60Days + total90Days + total120Days,
+            totalValue: Math.round((value60Days + value90Days + value120Days) * 100) / 100,
+          },
+          items: deadStockItems.slice(0, 200)
+        },
+        velocity: {
+          byCategory: categoryVelocity,
+          byVendor: vendorVelocity
+        },
+        stats: {
+          totalItemsAnalyzed: allInventory.length,
+          totalItemsWithSalesHistory: Object.keys(itemLastSales).length,
+          totalDeadStockItems: deadStockItems.length
+        }
+      };
+      
+      await pool.query(
+        `INSERT INTO inventory_cache (cache_key, data, synced_at)
+         VALUES ('inventory_analysis', $1, CURRENT_TIMESTAMP)
+         ON CONFLICT (cache_key)
+         DO UPDATE SET data = $1, synced_at = CURRENT_TIMESTAMP`,
+        [JSON.stringify(inventoryAnalysis)]
+      );
+      
+      console.log('InventoryIQ data cached');
+    } catch (invError) {
+      console.error('InventoryIQ sync error (non-fatal):', invError.message);
+      // Don't fail the whole sync if inventory fails
+    }
+    
+    // ========== STEP 6: Complete ==========
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.log(`========== NIGHTLY SYNC COMPLETE in ${duration}s ==========`);
     console.log(`Total records processed: ${totalRecords}`);
