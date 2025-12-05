@@ -757,18 +757,22 @@ app.post('/api/grids/:id/skip', async (req, res) => {
 // Get dead/slow stock - items that haven't sold recently
 app.get('/api/inventory/dead-stock', async (req, res) => {
   try {
-    // Get all items with inventory on hand
-    const inventoryData = await heartlandRequest('/inventory/values?group[]=item_id&per_page=500');
+    console.log('Starting dead stock calculation...');
     
-    // Get recent receipt data to find receive dates (last 180 days of receipts)
-    const sixMonthsAgo = new Date(Date.now() - 180*24*60*60*1000).toISOString().split('T')[0];
-    const receiptsData = await heartlandRequest(`/purchasing/receipts?per_page=200&_filter[created_at][$gte]=${sixMonthsAgo}&_filter[status]=complete`);
+    // Get items with inventory on hand (limit to 100 for speed)
+    const inventoryData = await heartlandRequest('/inventory/values?group[]=item_id&per_page=100');
+    console.log(`Found ${inventoryData.results?.length || 0} inventory items`);
+    
+    // Get recent receipt data to find receive dates (last 90 days, limit 50)
+    const ninetyDaysAgo = new Date(Date.now() - 90*24*60*60*1000).toISOString().split('T')[0];
+    const receiptsData = await heartlandRequest(`/purchasing/receipts?per_page=50&_filter[created_at][$gte]=${ninetyDaysAgo}&_filter[status]=complete`);
+    console.log(`Found ${receiptsData.results?.length || 0} receipts`);
     
     // Build a map of item_id -> receive date from receipt lines
     const itemReceiveDates = {};
     for (const receipt of receiptsData.results || []) {
       try {
-        const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=100`);
+        const lines = await heartlandRequest(`/purchasing/receipts/${receipt.id}/lines?per_page=50`);
         const receiveDate = receipt.completed_at || receipt.created_at;
         for (const line of lines.results || []) {
           if (line.item_id) {
@@ -779,12 +783,14 @@ app.get('/api/inventory/dead-stock', async (req, res) => {
           }
         }
       } catch (e) {
-        console.error(`Error fetching receipt ${receipt.id} lines:`, e);
+        console.error(`Error fetching receipt ${receipt.id} lines:`, e.message);
       }
     }
+    console.log(`Mapped ${Object.keys(itemReceiveDates).length} items to receive dates`);
     
-    // Get recent sales to find last sale dates
-    const salesData = await heartlandRequest('/reporting/sales?per_page=500');
+    // Get recent sales (limit to 200)
+    const salesData = await heartlandRequest('/reporting/sales?per_page=200');
+    console.log(`Found ${salesData.results?.length || 0} sales records`);
     
     // Build a map of item_id -> last sale date
     const itemLastSaleDates = {};
@@ -797,50 +803,62 @@ app.get('/api/inventory/dead-stock', async (req, res) => {
       }
     }
     
-    // Process inventory items
+    // Process inventory items (limit detail fetches)
     const deadStockItems = [];
     const now = new Date();
     
     let total60Days = 0, total90Days = 0, total120Days = 0;
     let value60Days = 0, value90Days = 0, value120Days = 0;
+    let processed = 0;
     
     for (const inv of inventoryData.results || []) {
       if (!inv.item_id) continue;
       const qty = inv.qty_on_hand || 0;
       if (qty <= 0) continue; // Skip out of stock
       
+      // Get receive date - use item created_at as fallback
+      let receiveDate = itemReceiveDates[inv.item_id];
+      
+      // Get last sale date
+      const lastSaleDate = itemLastSaleDates[inv.item_id];
+      
+      // Calculate days stagnant
+      let daysStagnant = 0;
+      if (lastSaleDate) {
+        daysStagnant = Math.floor((now - new Date(lastSaleDate)) / (1000 * 60 * 60 * 24));
+      } else if (receiveDate) {
+        daysStagnant = Math.floor((now - new Date(receiveDate)) / (1000 * 60 * 60 * 24));
+      } else {
+        continue; // Skip if we don't know when it was received
+      }
+      
+      // Only include items stagnant for 60+ days
+      if (daysStagnant < 60) continue;
+      
+      // Fetch item details (limit to first 50 matches for speed)
+      if (processed >= 50) {
+        // Just count the rest without fetching details
+        if (daysStagnant >= 120) {
+          total120Days++;
+          value120Days += qty * (inv.unit_cost || 0);
+        } else if (daysStagnant >= 90) {
+          total90Days++;
+          value90Days += qty * (inv.unit_cost || 0);
+        } else {
+          total60Days++;
+          value60Days += qty * (inv.unit_cost || 0);
+        }
+        continue;
+      }
+      
       try {
         const item = await heartlandRequest(`/items/${inv.item_id}`);
-        
-        // Get receive date
-        const receiveDate = itemReceiveDates[inv.item_id];
-        if (!receiveDate) continue; // Skip if we don't know when it was received
-        
-        // Get last sale date
-        const lastSaleDate = itemLastSaleDates[inv.item_id];
-        
-        // Calculate days since received
-        const receivedAt = new Date(receiveDate);
-        const daysSinceReceived = Math.floor((now - receivedAt) / (1000 * 60 * 60 * 24));
-        
-        // Calculate days since last sale (if any)
-        let daysSinceLastSale = null;
-        if (lastSaleDate) {
-          const lastSale = new Date(lastSaleDate);
-          daysSinceLastSale = Math.floor((now - lastSale) / (1000 * 60 * 60 * 24));
-        }
-        
-        // Use the more relevant metric: days since received if never sold, or days since last sale
-        const daysStagnant = daysSinceLastSale !== null ? daysSinceLastSale : daysSinceReceived;
-        
-        // Only include items stagnant for 60+ days
-        if (daysStagnant < 60) continue;
         
         const cost = item.cost || inv.unit_cost || 0;
         const price = item.price || 0;
         const value = qty * cost;
         
-        // Get vendor name
+        // Get vendor name from cache
         let vendorName = 'Unknown';
         if (item.primary_vendor_id) {
           vendorName = await getVendorName(item.primary_vendor_id);
@@ -866,7 +884,6 @@ app.get('/api/inventory/dead-stock', async (req, res) => {
         deadStockItems.push({
           id: inv.item_id,
           name: item.custom?.style_name || item.description || 'Unknown Item',
-          fullDescription: item.description,
           color: item.custom?.color_name || item.custom?.Color_Name || '',
           size: item.custom?.size || item.custom?.Size || '',
           category: item.custom?.category || item.custom?.Category || '',
@@ -876,20 +893,21 @@ app.get('/api/inventory/dead-stock', async (req, res) => {
           price: price,
           value: Math.round(value * 100) / 100,
           daysStagnant: daysStagnant,
-          daysSinceReceived: daysSinceReceived,
-          daysSinceLastSale: daysSinceLastSale,
-          receivedDate: receiveDate.split('T')[0],
+          receivedDate: receiveDate ? receiveDate.split('T')[0] : null,
           lastSaleDate: lastSaleDate ? lastSaleDate.split('T')[0] : null,
           suggestedMarkdown: suggestedMarkdown,
-          gridId: item.grid_id || null,
         });
+        
+        processed++;
       } catch (e) {
-        console.error(`Error processing item ${inv.item_id}:`, e);
+        console.error(`Error processing item ${inv.item_id}:`, e.message);
       }
     }
     
     // Sort by days stagnant (worst first)
     deadStockItems.sort((a, b) => b.daysStagnant - a.daysStagnant);
+    
+    console.log(`Dead stock calculation complete: ${deadStockItems.length} items`);
     
     res.json({
       summary: {
