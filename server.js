@@ -62,9 +62,15 @@ async function initDatabase() {
         item_name VARCHAR(255),
         item_size VARCHAR(50),
         item_color VARCHAR(100),
+        location_name VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(heartland_ticket_id, heartland_line_id)
       )
+    `);
+    
+    // Add location_name column if it doesn't exist (for existing installs)
+    await pool.query(`
+      ALTER TABLE sales_transactions ADD COLUMN IF NOT EXISTS location_name VARCHAR(100)
     `);
     
     // Create index for faster queries
@@ -1353,14 +1359,15 @@ async function runNightlySync() {
           INSERT INTO sales_transactions 
             (heartland_ticket_id, heartland_line_id, customer_id, item_id, 
              transaction_date, day_of_week, hour_of_day, quantity, unit_price, 
-             total_amount, category, vendor, brand, item_name, item_size, item_color)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+             total_amount, category, vendor, brand, item_name, item_size, item_color, location_name)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
           ON CONFLICT (heartland_ticket_id, heartland_line_id)
           DO UPDATE SET
             customer_id = EXCLUDED.customer_id,
             quantity = EXCLUDED.quantity,
             unit_price = EXCLUDED.unit_price,
-            total_amount = EXCLUDED.total_amount
+            total_amount = EXCLUDED.total_amount,
+            location_name = EXCLUDED.location_name
         `, [
           sale.transaction_id.toString(),
           sale.transaction_line_id?.toString() || '0',
@@ -1377,7 +1384,8 @@ async function runNightlySync() {
           itemDetails.brand || 'Unknown',
           itemDetails.name || 'Unknown Item',
           itemDetails.size || '',
-          itemDetails.color || ''
+          itemDetails.color || '',
+          sale.location_name || 'Unknown'
         ]);
         
         transactionCount++;
@@ -2009,6 +2017,17 @@ app.get('/api/sales/analysis', async (req, res) => {
     );
     const syncedAt = syncResult.rows[0]?.last_sync;
     
+    // Calculate date range for display
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    const formatDate = (d) => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${months[d.getMonth()]} ${d.getDate()}`;
+    };
+    const dateRangeLabel = `${formatDate(startDate)} - ${formatDate(endDate)}, ${endDate.getFullYear()}`;
+    
     // Sales by day of week
     const dayOfWeekResult = await pool.query(`
       SELECT 
@@ -2021,7 +2040,7 @@ app.get('/api/sales/analysis', async (req, res) => {
       ORDER BY day_of_week
     `);
     
-    // Sales by hour
+    // Sales by hour - IN-STORE ONLY (location = 'Chattanooga')
     const hourlyResult = await pool.query(`
       SELECT 
         hour_of_day,
@@ -2029,6 +2048,7 @@ app.get('/api/sales/analysis', async (req, res) => {
         COUNT(*) as transaction_count
       FROM sales_transactions
       WHERE transaction_date >= NOW() - INTERVAL '${days} days'
+        AND (location_name = 'Chattanooga' OR location_name IS NULL)
       GROUP BY hour_of_day
       ORDER BY hour_of_day
     `);
@@ -2078,6 +2098,7 @@ app.get('/api/sales/analysis', async (req, res) => {
       hourlyAvg,
       categories,
       dateRange: days,
+      dateRangeLabel,
       syncedAt
     });
   } catch (error) {

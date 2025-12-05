@@ -21,19 +21,21 @@
     .pro-badge { background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
     .page-subtitle { color: #666; margin: 0; }
     
-    .header-controls { display: flex; align-items: center; gap: 16px; }
+    .header-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
     .date-controls { display: flex; gap: 8px; }
     .date-btn { padding: 8px 16px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: #666; transition: all 0.2s; }
     .date-btn:hover { border-color: #e91e8a; color: #e91e8a; }
     .date-btn.active { background: #e91e8a; color: white; border-color: #e91e8a; }
+    .date-range-label { font-size: 0.85rem; color: #666; font-weight: 500; }
     .data-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; background: #f0f0f0; color: #666; }
     .data-status.live { background: #d1fae5; color: #059669; }
     .data-status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 
     .insight-box { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; gap: 16px; align-items: flex-start; }
     .insight-icon { font-size: 1.5rem; }
-    .insight-content h4 { color: #92400e; margin-bottom: 8px; font-size: 0.95rem; }
-    .insight-content p { color: #78350f; font-size: 0.9rem; line-height: 1.5; }
+    .insight-content h4 { color: #92400e; margin-bottom: 12px; font-size: 0.95rem; }
+    .insight-content ul { color: #78350f; font-size: 0.9rem; line-height: 1.7; margin: 0; padding-left: 20px; }
+    .insight-content li { margin-bottom: 6px; }
 
     .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
     @media (max-width: 768px) { .two-column { grid-template-columns: 1fr; } }
@@ -61,8 +63,9 @@
     .category-transactions { font-size: 0.8rem; color: #666; }
 
     .hours-analysis { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .hours-analysis-header { margin-bottom: 20px; }
+    .hours-analysis-header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
     .hours-analysis-title { font-size: 1.1rem; font-weight: 600; color: #222; }
+    .hours-analysis-subtitle { font-size: 0.8rem; color: #888; }
     .hours-bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 180px; padding: 0 10px; }
     .hour-bar-container { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
     .hour-bar { width: 100%; max-width: 48px; border-radius: 4px 4px 0 0; transition: all 0.3s; }
@@ -104,10 +107,7 @@
           <button class="date-btn active" data-days="90" onclick="setDateRange(90)">3 Months</button>
           <button class="date-btn" data-days="365" onclick="setDateRange(365)">Year</button>
         </div>
-        <div class="data-status" id="dataStatus">
-          <span class="data-status-dot"></span>
-          Loading...
-        </div>
+        <div class="date-range-label" id="dateRangeLabel">Loading...</div>
       </div>
     </div>
 
@@ -115,7 +115,9 @@
       <div class="insight-icon">💡</div>
       <div class="insight-content">
         <h4>AI Analysis</h4>
-        <p id="aiInsight">Analyzing your sales patterns...</p>
+        <ul id="aiInsight">
+          <li>Analyzing your sales patterns...</li>
+        </ul>
       </div>
     </div>
 
@@ -140,7 +142,10 @@
 
     <div class="hours-analysis">
       <div class="hours-analysis-header">
-        <div class="hours-analysis-title">⏰ Average Sale by Hour</div>
+        <div>
+          <div class="hours-analysis-title">⏰ Average Sale by Hour</div>
+          <div class="hours-analysis-subtitle">In-store sales only</div>
+        </div>
       </div>
       <div class="hours-bar-chart" id="hourlyBarChart">
         <div class="loading">Loading...</div>
@@ -154,6 +159,7 @@
     let hourlyAvg = [];
     let syncedAt = null;
     let currentDays = 90;
+    let dateRangeLabel = '';
 
     const categoryIcons = {
       'Dresses': '👗', 'Tops': '👚', 'Bottoms': '👖', 'Pants': '👖', 'Jeans': '👖',
@@ -168,7 +174,7 @@
     async function loadSalesData(days) {
       try {
         currentDays = days;
-        document.getElementById('dataStatus').innerHTML = '<span class="data-status-dot" style="background:#f59e0b"></span> Loading...';
+        document.getElementById('dateRangeLabel').textContent = 'Loading...';
         
         const response = await fetch('/api/sales/analysis?days=' + days);
         const data = await response.json();
@@ -187,10 +193,9 @@
         categories = (data.categories || []).map(c => ({ ...c, icon: getCategoryIcon(c.name) }));
         hourlyAvg = data.hourlyAvg || [];
         syncedAt = data.syncedAt;
+        dateRangeLabel = data.dateRangeLabel || '';
         
-        const syncTime = syncedAt ? new Date(syncedAt).toLocaleDateString() : 'Unknown';
-        document.getElementById('dataStatus').innerHTML = '<span class="data-status-dot" style="background:#10b981"></span> Synced ' + syncTime;
-        document.getElementById('dataStatus').classList.add('live');
+        document.getElementById('dateRangeLabel').textContent = dateRangeLabel;
         
         renderAll();
         generateAIInsight();
@@ -201,7 +206,7 @@
     }
 
     function showNoData() {
-      document.getElementById('dataStatus').innerHTML = '<span class="data-status-dot" style="background:#ef4444"></span> No data';
+      document.getElementById('dateRangeLabel').textContent = 'No data';
       document.getElementById('dayGrid').innerHTML = '<div style="padding:40px;text-align:center;color:#666"><p>No sales data yet.</p><button onclick="triggerSync()" style="margin-top:16px;padding:10px 20px;background:#e91e8a;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">Sync Now</button></div>';
       document.getElementById('categoryGrid').innerHTML = '<div style="padding:20px;text-align:center;color:#666">No category data</div>';
       document.getElementById('hourlyBarChart').innerHTML = '<div style="padding:40px;text-align:center;color:#666">No hourly data</div>';
@@ -209,7 +214,7 @@
 
     async function triggerSync() {
       try {
-        document.getElementById('dataStatus').innerHTML = '<span class="data-status-dot" style="background:#f59e0b"></span> Syncing...';
+        document.getElementById('dateRangeLabel').textContent = 'Syncing...';
         await fetch('/api/sync/manual', { method: 'POST' });
         alert('Sync started! Refresh in a few minutes.');
       } catch (e) { alert('Error: ' + e.message); }
@@ -222,25 +227,43 @@
     }
 
     function generateAIInsight() {
+      const insights = [];
+      
       if (dailySales.length === 0) {
-        document.getElementById('aiInsight').textContent = 'Sync sales data to see AI-powered insights.';
+        document.getElementById('aiInsight').innerHTML = '<li>Sync sales data to see AI-powered insights.</li>';
         return;
       }
+      
+      // Best day insight
       const bestDay = dailySales.find(d => d.best);
       const avgRevenue = dailySales.reduce((s, d) => s + d.revenue, 0) / dailySales.length;
-      const bestDayPct = bestDay ? Math.round((bestDay.revenue / avgRevenue - 1) * 100) : 0;
-      const sortedHours = [...hourlyAvg].sort((a, b) => b.avg - a.avg);
-      const peakHours = sortedHours.slice(0, 3).map(h => h.hour).join(', ');
-      const slowest = sortedHours[sortedHours.length - 1];
-      const topCat = categories[0]?.name || '';
+      if (bestDay && avgRevenue > 0) {
+        const bestDayPct = Math.round((bestDay.revenue / avgRevenue - 1) * 100);
+        insights.push(`<strong>${bestDay.day}</strong> is your strongest day with ${bestDayPct}% higher sales than average`);
+      }
       
-      let insight = '';
-      if (bestDay) insight += bestDay.day + ' is your strongest day with ' + bestDayPct + '% higher sales than average. ';
-      if (peakHours) insight += 'Peak hours are ' + peakHours + '. ';
-      if (slowest?.avg > 0) insight += 'Slowest hour is ' + slowest.hour + ' averaging $' + slowest.avg + '. ';
-      if (topCat) insight += topCat + ' is your top category.';
+      // Peak hours insight
+      if (hourlyAvg.length > 0) {
+        const sortedHours = [...hourlyAvg].sort((a, b) => b.avg - a.avg);
+        const peakHours = sortedHours.slice(0, 3).map(h => h.hour).join(', ');
+        insights.push(`Peak hours are <strong>${peakHours}</strong>`);
+        
+        // Slowest hour
+        const slowest = sortedHours[sortedHours.length - 1];
+        if (slowest?.avg > 0) {
+          insights.push(`Slowest hour is <strong>${slowest.hour}</strong> averaging $${slowest.avg}`);
+        }
+      }
       
-      document.getElementById('aiInsight').textContent = insight || 'Analyzing...';
+      // Top category
+      if (categories.length > 0) {
+        const topCat = categories[0];
+        insights.push(`<strong>${topCat.name}</strong> is your top category with $${topCat.revenue.toLocaleString()} in revenue`);
+      }
+      
+      document.getElementById('aiInsight').innerHTML = insights.length > 0 
+        ? insights.map(i => '<li>' + i + '</li>').join('') 
+        : '<li>Analyzing...</li>';
     }
 
     function renderHourlyChart() {
