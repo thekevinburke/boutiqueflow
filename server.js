@@ -536,7 +536,12 @@ app.get('/api/receipts', async (req, res) => {
         const done = stats.completed + stats.skipped;
         if (done > 0) {
           if (done >= gridCount) {
-            receiptStatus = 'completed';
+            // All items processed - check if all were skipped
+            if (stats.skipped >= gridCount && stats.completed === 0) {
+              receiptStatus = 'skipped';
+            } else {
+              receiptStatus = 'completed';
+            }
           } else {
             receiptStatus = 'in_progress';
           }
@@ -690,6 +695,63 @@ app.get('/api/receipts/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching receipt from Heartland:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Skip entire receipt (mark all items as skipped)
+app.post('/api/receipts/:id/skip', async (req, res) => {
+  try {
+    const receiptId = req.params.id;
+    
+    // Get all items in this receipt from Heartland
+    const lines = await heartlandRequest(`/purchasing/receipts/${receiptId}/lines?per_page=100`);
+    
+    // Get grid IDs to skip (for items that are part of grids)
+    const gridIds = new Set();
+    const itemIds = [];
+    
+    for (const line of (lines.results || [])) {
+      if (line.item_id) {
+        try {
+          const item = await heartlandRequest(`/items/${line.item_id}`);
+          if (item.grid_id) {
+            gridIds.add(item.grid_id);
+          } else {
+            itemIds.push(line.item_id);
+          }
+        } catch (e) {
+          // Item might be deleted, skip it
+        }
+      }
+    }
+    
+    // Mark all grids as skipped
+    for (const gridId of gridIds) {
+      await pool.query(`
+        INSERT INTO processed_items (item_type, item_id, receipt_id, status, updated_at)
+        VALUES ('grid', $1, $2, 'skipped', CURRENT_TIMESTAMP)
+        ON CONFLICT (item_type, item_id, receipt_id)
+        DO UPDATE SET status = 'skipped', updated_at = CURRENT_TIMESTAMP
+      `, [gridId.toString(), receiptId]);
+    }
+    
+    // Mark all standalone items as skipped
+    for (const itemId of itemIds) {
+      await pool.query(`
+        INSERT INTO processed_items (item_type, item_id, receipt_id, status, updated_at)
+        VALUES ('item', $1, $2, 'skipped', CURRENT_TIMESTAMP)
+        ON CONFLICT (item_type, item_id, receipt_id)
+        DO UPDATE SET status = 'skipped', updated_at = CURRENT_TIMESTAMP
+      `, [itemId.toString(), receiptId]);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Skipped ${gridIds.size} grids and ${itemIds.length} items` 
+    });
+  } catch (error) {
+    console.error('Error skipping receipt:', error);
     res.status(500).json({ error: error.message });
   }
 });

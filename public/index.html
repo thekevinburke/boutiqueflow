@@ -148,7 +148,7 @@
 
     .receipt-list-header {
       display: grid;
-      grid-template-columns: 100px 1fr 140px 80px 100px;
+      grid-template-columns: 100px 1fr 140px 80px 100px 60px;
       padding: 12px 20px;
       background: #f8f9fa;
       font-size: 0.75rem;
@@ -160,11 +160,12 @@
 
     .receipt-row {
       display: grid;
-      grid-template-columns: 100px 1fr 140px 80px 100px;
+      grid-template-columns: 100px 1fr 140px 80px 100px 60px;
       padding: 16px 20px;
       border-bottom: 1px solid #f0f0f0;
       cursor: pointer;
       transition: background 0.15s;
+      align-items: center;
     }
 
     .receipt-row:hover {
@@ -192,6 +193,18 @@
     .receipt-items {
       color: #666;
       font-size: 0.9rem;
+    }
+
+    .receipt-skip {
+      color: #888;
+      font-size: 0.85rem;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    
+    .receipt-skip:hover {
+      color: #e91e8a;
+      text-decoration: underline;
     }
 
     .status-badge {
@@ -647,6 +660,9 @@
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
               <input type="checkbox" id="filterCompleted" onchange="applyFilters()"> Completed
             </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+              <input type="checkbox" id="filterSkipped" onchange="applyFilters()"> Skipped
+            </label>
           </div>
         </div>
         <div class="filter-group" style="display: flex; flex-direction: column;">
@@ -664,6 +680,7 @@
           <div>Receipt #</div>
           <div>Items</div>
           <div>Status</div>
+          <div></div>
         </div>
         <div id="receiptListBody">
           <!-- Receipts loaded here -->
@@ -842,6 +859,7 @@
       const showNew = document.getElementById('filterNew').checked;
       const showInProgress = document.getElementById('filterInProgress').checked;
       const showCompleted = document.getElementById('filterCompleted').checked;
+      const showSkipped = document.getElementById('filterSkipped').checked;
       const vendorFilter = document.getElementById('vendorFilter').value;
 
       let filtered = allReceipts;
@@ -851,6 +869,7 @@
         if (r.status === 'new' && showNew) return true;
         if (r.status === 'in_progress' && showInProgress) return true;
         if (r.status === 'completed' && showCompleted) return true;
+        if (r.status === 'skipped' && showSkipped) return true;
         return false;
       });
 
@@ -864,6 +883,7 @@
         if (r.status === 'new') newItems += r.itemCount;
         else if (r.status === 'in_progress') inProgress += r.itemCount;
         else if (r.status === 'completed') completed += r.itemCount;
+        // skipped items don't count toward any stat
       });
 
       document.getElementById('statNew').textContent = newItems;
@@ -879,8 +899,31 @@
           <div class="receipt-po">${r.receiptNumber}</div>
           <div class="receipt-items">${r.itemCount} items</div>
           <div><span class="status-badge ${r.status}">${formatStatus(r.status)}</span></div>
+          <div><a class="receipt-skip" onclick="event.stopPropagation(); skipReceipt('${r.id}', '${r.vendor.replace(/'/g, "\\'")}')">Skip</a></div>
         </div>
       `).join('');
+    }
+
+    async function skipReceipt(receiptId, vendorName) {
+      if (!confirm(`Skip all items in this ${vendorName} receipt?`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/receipts/${receiptId}/skip`, {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          // Refresh the list
+          await loadReceipts();
+        } else {
+          const error = await response.json();
+          alert('Error skipping receipt: ' + (error.message || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error skipping receipt: ' + err.message);
+      }
     }
 
     async function showReceipt(receiptId) {
