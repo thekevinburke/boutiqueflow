@@ -1222,89 +1222,107 @@ async function runNightlySync() {
   try {
     console.log('========== NIGHTLY SYNC STARTED ==========');
     
-    // ========== STEP 1: Fetch Sales Tickets ==========
-    console.log('Step 1: Fetching sales tickets...');
+    // ========== STEP 1: Fetch Sales from Reporting API ==========
+    console.log('Step 1: Fetching sales data from reporting API...');
     const oneYearAgo = new Date(Date.now() - 365*24*60*60*1000).toISOString().split('T')[0];
     
-    // Get all tickets from the past year
-    const tickets = await fetchAllPages(`/sales/tickets?_filter[created_at][$gte]=${oneYearAgo}`);
-    console.log(`Found ${tickets.length} tickets`);
+    // Get all sales from the past year using reporting/sales (has all the data we need)
+    const sales = await fetchAllPages(`/reporting/sales?_filter[date][$gte]=${oneYearAgo}`);
+    console.log(`Found ${sales.length} sales records`);
     
-    // ========== STEP 2: Process Each Ticket ==========
-    console.log('Step 2: Processing tickets and fetching line items...');
-    let processedTickets = 0;
+    // ========== STEP 2: Process Sales Records ==========
+    console.log('Step 2: Processing sales records...');
     let transactionCount = 0;
     
-    // Process in batches to avoid overwhelming the API
-    const batchSize = 20;
-    for (let i = 0; i < tickets.length; i += batchSize) {
-      const batch = tickets.slice(i, i + batchSize);
-      
-      await Promise.all(batch.map(async (ticket) => {
-        try {
-          // Get ticket lines
-          const lines = await heartlandRequest(`/sales/tickets/${ticket.id}/lines?per_page=100`);
-          
-          for (const line of (lines.results || [])) {
-            if (!line.item_id) continue;
-            
-            // Get item details for category/brand info
-            let itemDetails = {};
-            try {
-              itemDetails = await heartlandRequest(`/items/${line.item_id}`);
-            } catch (e) {
-              // Item might be deleted, continue with partial data
-            }
-            
-            // Get vendor name
-            let vendorName = 'Unknown';
-            if (itemDetails.primary_vendor_id) {
-              vendorName = await getVendorName(itemDetails.primary_vendor_id);
-            }
-            
-            const transactionDate = new Date(ticket.created_at);
-            
-            // Upsert transaction
-            await pool.query(`
-              INSERT INTO sales_transactions 
-                (heartland_ticket_id, heartland_line_id, customer_id, item_id, 
-                 transaction_date, day_of_week, hour_of_day, quantity, unit_price, 
-                 total_amount, category, vendor, brand, item_name, item_size, item_color)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-              ON CONFLICT (heartland_ticket_id, heartland_line_id)
-              DO UPDATE SET
-                customer_id = EXCLUDED.customer_id,
-                quantity = EXCLUDED.quantity,
-                total_amount = EXCLUDED.total_amount
-            `, [
-              ticket.id.toString(),
-              line.id?.toString() || '0',
-              ticket.customer_id?.toString() || null,
-              line.item_id?.toString(),
-              transactionDate,
-              transactionDate.getDay(), // 0=Sunday
-              transactionDate.getHours(),
-              line.qty || 1,
-              line.unit_price || 0,
-              line.total || 0,
-              itemDetails.custom?.category || itemDetails.custom?.Category || 'Uncategorized',
-              vendorName,
-              itemDetails.custom?.brand || itemDetails.custom?.Brand || vendorName,
-              itemDetails.description || 'Unknown Item',
-              itemDetails.custom?.size || itemDetails.custom?.Size || '',
-              itemDetails.custom?.color_name || itemDetails.custom?.Color_Name || ''
-            ]);
-            
-            transactionCount++;
-          }
-        } catch (e) {
-          console.error(`Error processing ticket ${ticket.id}:`, e.message);
+    // Get item details for category/brand info (batch by unique item IDs)
+    const uniqueItemIds = [...new Set(sales.map(s => s.item_id).filter(Boolean))];
+    console.log(`Fetching details for ${uniqueItemIds.length} unique items...`);
+    
+    const itemDetailsCache = {};
+    let itemsFetched = 0;
+    for (const itemId of uniqueItemIds) {
+      try {
+        const item = await heartlandRequest(`/items/${itemId}`);
+        let vendorName = 'Unknown';
+        if (item.primary_vendor_id) {
+          vendorName = await getVendorName(item.primary_vendor_id);
         }
-      }));
+        itemDetailsCache[itemId] = {
+          category: item.custom?.category || item.custom?.Category || 'Uncategorized',
+          brand: item.custom?.brand || item.custom?.Brand || vendorName,
+          vendor: vendorName,
+          name: item.description || 'Unknown Item',
+          size: item.custom?.size || item.custom?.Size || '',
+          color: item.custom?.color_name || item.custom?.Color_Name || ''
+        };
+        itemsFetched++;
+        if (itemsFetched % 100 === 0) {
+          console.log(`Fetched ${itemsFetched}/${uniqueItemIds.length} item details...`);
+        }
+      } catch (e) {
+        // Item might be deleted, use defaults
+        itemDetailsCache[itemId] = {
+          category: 'Uncategorized',
+          brand: 'Unknown',
+          vendor: 'Unknown',
+          name: 'Unknown Item',
+          size: '',
+          color: ''
+        };
+      }
+    }
+    console.log(`Fetched details for ${itemsFetched} items`);
+    
+    // Now insert all sales records
+    console.log('Inserting sales transactions...');
+    for (const sale of sales) {
+      if (!sale.item_id) continue;
       
-      processedTickets += batch.length;
-      if (processedTickets % 100 === 0) {
-        console.log(`Processed ${processedTickets}/${tickets.length} tickets...`);
+      const itemDetails = itemDetailsCache[sale.item_id] || {};
+      const transactionDate = new Date(sale.datetime);
+      
+      try {
+        // Upsert transaction using reporting sales data
+        await pool.query(`
+          INSERT INTO sales_transactions 
+            (heartland_ticket_id, heartland_line_id, customer_id, item_id, 
+             transaction_date, day_of_week, hour_of_day, quantity, unit_price, 
+             total_amount, category, vendor, brand, item_name, item_size, item_color)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          ON CONFLICT (heartland_ticket_id, heartland_line_id)
+          DO UPDATE SET
+            customer_id = EXCLUDED.customer_id,
+            quantity = EXCLUDED.quantity,
+            unit_price = EXCLUDED.unit_price,
+            total_amount = EXCLUDED.total_amount
+        `, [
+          sale.transaction_id.toString(),
+          sale.transaction_line_id?.toString() || '0',
+          sale.customer_id?.toString() || null,
+          sale.item_id?.toString(),
+          transactionDate,
+          transactionDate.getDay(), // 0=Sunday
+          sale.hour || transactionDate.getHours(),
+          sale.net_qty_sold || 1,
+          sale.unit_price || 0,
+          sale.net_sales || 0,
+          itemDetails.category || 'Uncategorized',
+          itemDetails.vendor || 'Unknown',
+          itemDetails.brand || 'Unknown',
+          itemDetails.name || 'Unknown Item',
+          itemDetails.size || '',
+          itemDetails.color || ''
+        ]);
+        
+        transactionCount++;
+        if (transactionCount % 500 === 0) {
+          console.log(`Inserted ${transactionCount}/${sales.length} transactions...`);
+        }
+      } catch (e) {
+        // Skip duplicates or errors
+        if (!e.message.includes('duplicate')) {
+          console.error(`Error inserting sale ${sale.id}:`, e.message);
+        }
       }
     }
     
