@@ -107,10 +107,10 @@
     <a href="index.html" class="logo">Boutique<span>Flow</span></a>
     <nav class="nav-links">
       <a href="index.html">ReceiptAI</a>
-      <a href="inventoryiq.html"><strong>InventoryIQ</strong> <span class="pro-badge-small">PRO</span></a>
-      <a href="salesiq.html">SalesIQ <span class="pro-badge-small">PRO</span></a>
       <a href="first-dibs.html">First Dibs <span class="pro-badge-small">PRO</span></a>
       <a href="retargeting.html">Retargeting <span class="pro-badge-small">PRO</span></a>
+      <a href="inventoryiq.html"><strong>InventoryIQ</strong> <span class="pro-badge-small">PRO</span></a>
+      <a href="salesiq.html">SalesIQ <span class="pro-badge-small">PRO</span></a>
     </nav>
   </div>
 
@@ -272,15 +272,15 @@
 
     function renderVelocity() {
       if (!inventoryData?.velocity) return;
-      const catHtml = inventoryData.velocity.byCategory.slice(0,6).map((c,i) => {
+      const catHtml = inventoryData.velocity.byCategory.slice(0,10).map((c,i) => {
         const speed = c.avgDaysToSell <= 30 ? 'fast' : c.avgDaysToSell >= 60 ? 'slow' : '';
-        const rank = i < 2 ? 'fast' : i >= 4 ? 'slow' : '';
+        const rank = i < 3 ? 'fast' : i >= 7 ? 'slow' : '';
         return '<div class="velocity-item"><div class="velocity-rank '+rank+'">'+(i+1)+'</div><div class="velocity-info"><div class="velocity-name">'+c.name+'</div><div class="velocity-meta">'+c.itemsSold+' items sold</div></div><div class="velocity-days '+speed+'">'+c.avgDaysToSell+' days</div></div>';
       }).join('');
       document.getElementById('categoryVelocity').innerHTML = catHtml || '<p style="color:#888">Not enough data yet</p>';
-      const venHtml = inventoryData.velocity.byVendor.slice(0,6).map((v,i) => {
+      const venHtml = inventoryData.velocity.byVendor.slice(0,10).map((v,i) => {
         const speed = v.avgDaysToSell <= 30 ? 'fast' : v.avgDaysToSell >= 60 ? 'slow' : '';
-        const rank = i < 2 ? 'fast' : i >= 4 ? 'slow' : '';
+        const rank = i < 3 ? 'fast' : i >= 7 ? 'slow' : '';
         return '<div class="velocity-item"><div class="velocity-rank '+rank+'">'+(i+1)+'</div><div class="velocity-info"><div class="velocity-name">'+v.name+'</div><div class="velocity-meta">'+v.itemsSold+' items sold</div></div><div class="velocity-days '+speed+'">'+v.avgDaysToSell+' days</div></div>';
       }).join('');
       document.getElementById('vendorVelocity').innerHTML = venHtml || '<p style="color:#888">Not enough data yet</p>';

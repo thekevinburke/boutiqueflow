@@ -2087,7 +2087,7 @@ app.get('/api/sales/analysis', async (req, res) => {
       ORDER BY day_of_week
     `);
     
-    // Sales by hour - EXCLUDE ONLINE (filter out 'Online', 'Web', etc.)
+    // Sales by hour - EXCLUDE ONLINE and filter to business hours (8am-9pm)
     const hourlyResult = await pool.query(`
       SELECT 
         hour_of_day,
@@ -2096,6 +2096,7 @@ app.get('/api/sales/analysis', async (req, res) => {
       FROM sales_transactions
       WHERE transaction_date >= NOW() - INTERVAL '${days} days'
         AND (location_name IS NULL OR location_name NOT ILIKE '%online%' AND location_name NOT ILIKE '%web%')
+        AND hour_of_day >= 8 AND hour_of_day <= 21
       GROUP BY hour_of_day
       ORDER BY hour_of_day
     `);
