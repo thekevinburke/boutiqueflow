@@ -1180,7 +1180,7 @@
       }
 
       let html = visible.map(customer => `
-        <div class="customer-card ${selectedCustomerId === customer.id ? 'selected' : ''}" data-id="${customer.id}" onclick="selectCustomer(${customer.id})">
+        <div class="customer-card ${selectedCustomerId === customer.id ? 'selected' : ''}" data-id="${customer.id}" onclick="selectCustomer('${customer.id}')">
           <div class="customer-card-content">
             <div class="customer-avatar">${getInitials(customer.name)}</div>
             <div class="customer-info">
@@ -1214,8 +1214,8 @@
               <span class="discount-label">Show message or use MISSYOU15 online</span>
             </div>
             <div class="customer-actions">
-              <button class="btn btn-secondary" onclick="event.stopPropagation(); skipCustomer(${customer.id})">Skip</button>
-              <button class="btn btn-primary" onclick="event.stopPropagation(); selectCustomer(${customer.id})">Review & Send</button>
+              <button class="btn btn-secondary" onclick="event.stopPropagation(); skipCustomer('${customer.id}')">Skip</button>
+              <button class="btn btn-primary" onclick="event.stopPropagation(); selectCustomer('${customer.id}')">Review & Send</button>
             </div>
           </div>
         </div>
@@ -1276,7 +1276,7 @@
           <div class="char-count" id="charCount">${message.length} characters</div>
         </div>
 
-        <button class="btn btn-success btn-block" id="sendBtn" onclick="sendMessage(${customer.id})">
+        <button class="btn btn-success btn-block" id="sendBtn" onclick="sendMessage('${customer.id}')">
           <span>📤</span> Send via Klaviyo
         </button>
 
