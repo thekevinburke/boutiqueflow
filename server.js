@@ -2654,6 +2654,21 @@ app.get('/api/reviewiq/customers', async (req, res) => {
 // Klaviyo API Key for ReviewIQ
 const KLAVIYO_API_KEY = 'pk_eb867279e2621d7bc3073404e4fed04a88';
 
+// Debug: Check customer phone data
+app.get('/api/debug/customer-phone/:name', async (req, res) => {
+  try {
+    const name = req.params.name;
+    const result = await pool.query(`
+      SELECT heartland_customer_id, first_name, last_name, email, phone 
+      FROM customers 
+      WHERE first_name ILIKE $1 OR last_name ILIKE $1
+    `, [`%${name}%`]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Test Klaviyo connection
 app.get('/api/reviewiq/test-klaviyo', async (req, res) => {
   try {
