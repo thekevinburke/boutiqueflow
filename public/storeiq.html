@@ -610,6 +610,26 @@
       border-color: #e91e8a;
     }
 
+    .table-filter-select {
+      padding: 8px 12px;
+      border: 1px solid #e0e0e0;
+      background: white;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: #333;
+      min-width: 150px;
+    }
+
+    .table-filter-select:hover {
+      border-color: #e91e8a;
+    }
+
+    .table-filter-select:focus {
+      outline: none;
+      border-color: #e91e8a;
+    }
+
     /* Data Table */
     .data-table {
       background: white;
@@ -926,6 +946,15 @@
         <button class="filter-pill" onclick="filterByDays(60)" id="filter60">60-89 Days</button>
         <button class="filter-pill" onclick="filterByDays(90)" id="filter90">90-119 Days</button>
         <button class="filter-pill" onclick="filterByDays(120)" id="filter120">120+ Days</button>
+        
+        <div style="margin-left: auto; display: flex; gap: 12px;">
+          <select id="vendorFilter" onchange="applyTableFilters()" class="table-filter-select">
+            <option value="">All Vendors</option>
+          </select>
+          <select id="categoryFilter" onchange="applyTableFilters()" class="table-filter-select">
+            <option value="">All Categories</option>
+          </select>
+        </div>
       </div>
 
       <div class="data-table">
@@ -1368,6 +1397,39 @@
       document.getElementById('value120').textContent = '$' + summary.value120Days.toLocaleString() + ' tied up';
       document.getElementById('pct120').textContent = totalItems > 0 ? Math.round((summary.items120Days / totalItems) * 100) + '% of inventory' : '-';
       
+      // Populate vendor and category dropdowns
+      populateTableFilters();
+      
+      renderTable();
+    }
+
+    // Track selected vendor/category filters
+    let selectedVendor = '';
+    let selectedCategory = '';
+
+    function populateTableFilters() {
+      if (!inventoryData?.deadStock?.items) return;
+      
+      const items = inventoryData.deadStock.items;
+      
+      // Get unique vendors and categories, sorted alphabetically
+      const vendors = [...new Set(items.map(i => i.vendor).filter(Boolean))].sort();
+      const categories = [...new Set(items.map(i => i.category).filter(Boolean))].sort();
+      
+      // Populate vendor dropdown
+      const vendorSelect = document.getElementById('vendorFilter');
+      vendorSelect.innerHTML = '<option value="">All Vendors</option>' + 
+        vendors.map(v => `<option value="${v}">${v}</option>`).join('');
+      
+      // Populate category dropdown
+      const categorySelect = document.getElementById('categoryFilter');
+      categorySelect.innerHTML = '<option value="">All Categories</option>' + 
+        categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function applyTableFilters() {
+      selectedVendor = document.getElementById('vendorFilter').value;
+      selectedCategory = document.getElementById('categoryFilter').value;
       renderTable();
     }
 
@@ -1410,6 +1472,7 @@
       
       let items = inventoryData.deadStock.items;
       
+      // Apply days filter
       if (currentFilter === 'fresh') {
         items = items.filter(item => item.daysSinceReceived < 60);
       } else if (currentFilter === 60) {
@@ -1420,12 +1483,22 @@
         items = items.filter(item => item.daysSinceReceived >= 120);
       }
       
+      // Apply vendor filter
+      if (selectedVendor) {
+        items = items.filter(item => item.vendor === selectedVendor);
+      }
+      
+      // Apply category filter
+      if (selectedCategory) {
+        items = items.filter(item => item.category === selectedCategory);
+      }
+      
       if (items.length === 0) {
         const message = currentFilter === 'fresh' 
           ? '<p>Fresh inventory (0-44 days) is not listed individually.</p><p style="font-size: 0.85rem; margin-top: 8px;">Only items 45+ days are tracked for markdown recommendations.</p>'
-          : '<p>Great news - no items match this filter.</p>';
+          : '<p>No items match these filters.</p>';
         const icon = currentFilter === 'fresh' ? '✅' : '🎉';
-        const title = currentFilter === 'fresh' ? 'Looking good!' : 'No items in this category!';
+        const title = currentFilter === 'fresh' ? 'Looking good!' : 'No items found';
         
         document.getElementById('tableBody').innerHTML = `
           <div class="empty-state">
