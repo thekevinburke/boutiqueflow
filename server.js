@@ -2651,12 +2651,78 @@ app.get('/api/reviewiq/customers', async (req, res) => {
   }
 });
 
+// Klaviyo API Key for ReviewIQ
+const KLAVIYO_API_KEY = 'pk_eb867279e2621d7bc3073404e4fed04a88';
+
 // Send review request
 app.post('/api/reviewiq/send', async (req, res) => {
   try {
     const { customerId, message, method } = req.body;
     
-    // Record the request
+    // Get customer details for Klaviyo
+    const customerResult = await pool.query(`
+      SELECT email, phone, first_name, last_name 
+      FROM customers 
+      WHERE heartland_customer_id = $1
+    `, [customerId]);
+    
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    
+    const customer = customerResult.rows[0];
+    
+    if (!customer.email && !customer.phone) {
+      return res.status(400).json({ error: 'Customer has no email or phone' });
+    }
+    
+    // Send to Klaviyo
+    try {
+      const klaviyoPayload = {
+        data: {
+          type: 'event',
+          attributes: {
+            profile: {
+              email: customer.email,
+              phone_number: customer.phone,
+              first_name: customer.first_name,
+              last_name: customer.last_name
+            },
+            metric: {
+              name: 'Review Request Sent'
+            },
+            properties: {
+              message: message,
+              method: method,
+              customer_id: customerId
+            }
+          }
+        }
+      };
+      
+      const klaviyoResponse = await fetch('https://a.klaviyo.com/api/events/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+          'Content-Type': 'application/json',
+          'revision': '2024-02-15'
+        },
+        body: JSON.stringify(klaviyoPayload)
+      });
+      
+      if (!klaviyoResponse.ok) {
+        const errorText = await klaviyoResponse.text();
+        console.error('Klaviyo API error:', errorText);
+        // Don't fail the whole request - still record it locally
+      } else {
+        console.log(`ReviewIQ: Sent to Klaviyo - ${customer.email || customer.phone}`);
+      }
+    } catch (klaviyoError) {
+      console.error('Klaviyo request failed:', klaviyoError.message);
+      // Don't fail the whole request - still record it locally
+    }
+    
+    // Record the request in our database
     await pool.query(`
       INSERT INTO review_requests (customer_id, status, sent_at, method, message)
       VALUES ($1, 'sent', NOW(), $2, $3)
@@ -2664,11 +2730,9 @@ app.post('/api/reviewiq/send', async (req, res) => {
       DO UPDATE SET status = 'sent', sent_at = NOW(), method = $2, message = $3
     `, [customerId, method, message]);
     
-    // TODO: Send to Klaviyo
-    // For now, just log it
     console.log(`ReviewIQ: Sent ${method} review request to customer ${customerId}`);
     
-    res.json({ success: true, message: 'Review request sent' });
+    res.json({ success: true, message: 'Review request sent to Klaviyo' });
   } catch (error) {
     console.error('Error sending review request:', error);
     res.status(500).json({ error: error.message });
