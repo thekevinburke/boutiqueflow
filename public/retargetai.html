@@ -868,7 +868,7 @@
         ReceiptAI
       </a>
       <a href="firstdibsai.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
-        First Dibs
+        FirstDibsAI
       </a>
       <a href="retargetai.html" style="text-decoration: none; color: #e91e8a; font-weight: 600; font-size: 0.9rem;">
         RetargetAI
@@ -880,7 +880,7 @@
         SalesIQ
       </a>
       <a href="reviewai.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
-        ReviewIQ
+        ReviewAI
       </a>
     </div>
   </div>
@@ -1323,10 +1323,8 @@
       sendBtn.disabled = true;
       sendBtn.innerHTML = '<span class="spinner"></span> Sending via Klaviyo...';
 
-      const customer = mockCustomers.find(c => c.id === id);
-      const message = document.getElementById('messageTemplate').value
-        .replace('{{first_name}}', customer.name.split(' ')[0])
-        .replace('{{last_purchase_date}}', new Date(customer.lastPurchase?.date || Date.now()).toLocaleDateString());
+      const customer = customers.find(c => c.id === id);
+      const message = document.getElementById('messageText').value;
       
       try {
         const response = await fetch('/api/retargetai/send', {
