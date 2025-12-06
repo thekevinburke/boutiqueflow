@@ -571,6 +571,17 @@
       margin-top: 4px;
     }
 
+    .stat-pct {
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    .stat-card.fresh {
+      border-left: 4px solid #10b981;
+    }
+
     /* Filter Pills */
     .filter-row {
       display: flex;
@@ -882,26 +893,36 @@
 
     <!-- INVENTORY HEALTH TAB -->
     <div id="tab-inventory" class="tab-content">
-      <div class="stats-row">
+      <div class="stats-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="stat-card fresh" onclick="filterByDays('fresh')" id="cardFresh">
+          <div class="stat-number" id="countFresh">-</div>
+          <div class="stat-label">Items 0-59 Days</div>
+          <div class="stat-value" id="valueFresh">$0 invested</div>
+          <div class="stat-pct" id="pctFresh">-% of inventory</div>
+        </div>
         <div class="stat-card warning" onclick="filterByDays(60)" id="card60">
           <div class="stat-number" id="count60">-</div>
           <div class="stat-label">Items 60-89 Days</div>
           <div class="stat-value" id="value60">$0 tied up</div>
+          <div class="stat-pct" id="pct60">-% of inventory</div>
         </div>
         <div class="stat-card danger" onclick="filterByDays(90)" id="card90">
           <div class="stat-number" id="count90">-</div>
           <div class="stat-label">Items 90-119 Days</div>
           <div class="stat-value" id="value90">$0 tied up</div>
+          <div class="stat-pct" id="pct90">-% of inventory</div>
         </div>
         <div class="stat-card critical" onclick="filterByDays(120)" id="card120">
           <div class="stat-number" id="count120">-</div>
           <div class="stat-label">Items 120+ Days</div>
           <div class="stat-value" id="value120">$0 tied up</div>
+          <div class="stat-pct" id="pct120">-% of inventory</div>
         </div>
       </div>
 
       <div class="filter-row">
-        <button class="filter-pill active" onclick="filterByDays('all')" id="filterAll">All Slow Stock</button>
+        <button class="filter-pill active" onclick="filterByDays('all')" id="filterAll">All Aging Stock</button>
+        <button class="filter-pill" onclick="filterByDays('fresh')" id="filterFresh">0-59 Days</button>
         <button class="filter-pill" onclick="filterByDays(60)" id="filter60">60-89 Days</button>
         <button class="filter-pill" onclick="filterByDays(90)" id="filter90">90-119 Days</button>
         <button class="filter-pill" onclick="filterByDays(120)" id="filter120">120+ Days</button>
@@ -1320,13 +1341,32 @@
       
       const summary = inventoryData.deadStock.summary;
       
-      document.getElementById('count60').textContent = summary.items60Days;
-      document.getElementById('count90').textContent = summary.items90Days;
-      document.getElementById('count120').textContent = summary.items120Days;
+      // Calculate fresh items (0-59 days) = itemsFresh + itemsWatch (45-59)
+      const freshCount = (summary.itemsFresh || 0) + (summary.itemsWatch || 0);
+      const freshValue = (summary.valueFresh || 0) + (summary.valueWatch || 0);
       
+      // Calculate total for percentages
+      const totalItems = freshCount + summary.items60Days + summary.items90Days + summary.items120Days;
+      
+      // Fresh bucket
+      document.getElementById('countFresh').textContent = freshCount;
+      document.getElementById('valueFresh').textContent = '$' + freshValue.toLocaleString() + ' invested';
+      document.getElementById('pctFresh').textContent = totalItems > 0 ? Math.round((freshCount / totalItems) * 100) + '% of inventory' : '-';
+      
+      // 60-89 days
+      document.getElementById('count60').textContent = summary.items60Days;
       document.getElementById('value60').textContent = '$' + summary.value60Days.toLocaleString() + ' tied up';
+      document.getElementById('pct60').textContent = totalItems > 0 ? Math.round((summary.items60Days / totalItems) * 100) + '% of inventory' : '-';
+      
+      // 90-119 days
+      document.getElementById('count90').textContent = summary.items90Days;
       document.getElementById('value90').textContent = '$' + summary.value90Days.toLocaleString() + ' tied up';
+      document.getElementById('pct90').textContent = totalItems > 0 ? Math.round((summary.items90Days / totalItems) * 100) + '% of inventory' : '-';
+      
+      // 120+ days
+      document.getElementById('count120').textContent = summary.items120Days;
       document.getElementById('value120').textContent = '$' + summary.value120Days.toLocaleString() + ' tied up';
+      document.getElementById('pct120').textContent = totalItems > 0 ? Math.round((summary.items120Days / totalItems) * 100) + '% of inventory' : '-';
       
       renderTable();
     }
@@ -1339,6 +1379,9 @@
       
       if (days === 'all') {
         document.getElementById('filterAll').classList.add('active');
+      } else if (days === 'fresh') {
+        document.getElementById('filterFresh').classList.add('active');
+        document.getElementById('cardFresh').classList.add('active');
       } else if (days === 60) {
         document.getElementById('filter60').classList.add('active');
         document.getElementById('card60').classList.add('active');
@@ -1367,7 +1410,9 @@
       
       let items = inventoryData.deadStock.items;
       
-      if (currentFilter === 60) {
+      if (currentFilter === 'fresh') {
+        items = items.filter(item => item.daysSinceReceived < 60);
+      } else if (currentFilter === 60) {
         items = items.filter(item => item.daysSinceReceived >= 60 && item.daysSinceReceived < 90);
       } else if (currentFilter === 90) {
         items = items.filter(item => item.daysSinceReceived >= 90 && item.daysSinceReceived < 120);
@@ -1376,11 +1421,17 @@
       }
       
       if (items.length === 0) {
+        const message = currentFilter === 'fresh' 
+          ? '<p>Fresh inventory (0-44 days) is not listed individually.</p><p style="font-size: 0.85rem; margin-top: 8px;">Only items 45+ days are tracked for markdown recommendations.</p>'
+          : '<p>Great news - no items match this filter.</p>';
+        const icon = currentFilter === 'fresh' ? '✅' : '🎉';
+        const title = currentFilter === 'fresh' ? 'Looking good!' : 'No items in this category!';
+        
         document.getElementById('tableBody').innerHTML = `
           <div class="empty-state">
-            <div class="icon">🎉</div>
-            <h3>No items in this category!</h3>
-            <p>Great news - no items match this filter.</p>
+            <div class="icon">${icon}</div>
+            <h3>${title}</h3>
+            ${message}
           </div>
         `;
         return;
