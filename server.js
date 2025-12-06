@@ -2669,6 +2669,26 @@ app.get('/api/debug/customer-phone/:name', async (req, res) => {
   }
 });
 
+// Debug: Check raw Heartland customer data
+app.get('/api/debug/heartland-customer/:id', async (req, res) => {
+  try {
+    const cust = await heartlandRequest(`/customers/${req.params.id}`);
+    res.json({
+      id: cust.id,
+      first_name: cust.first_name,
+      last_name: cust.last_name,
+      email: cust.email,
+      emails: cust.emails,
+      phone: cust.phone,
+      phones: cust.phones,
+      mobile_phone: cust.mobile_phone,
+      all_fields: Object.keys(cust)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Test Klaviyo connection
 app.get('/api/reviewiq/test-klaviyo', async (req, res) => {
   try {
