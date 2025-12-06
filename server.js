@@ -1267,6 +1267,10 @@ app.post('/api/inventory/sync', async (req, res) => {
     let totalFresh = 0, totalWatch = 0, total60Days = 0, total90Days = 0, total120Days = 0;
     let valueFresh = 0, valueWatch = 0, value60Days = 0, value90Days = 0, value120Days = 0;
     
+    // Track inventory value by category
+    const categoryInventory = {};
+    let totalInventoryValue = 0;
+    
     for (const inv of allInventory) {
       if (!inv.item_id) continue;
       const qtyOnHand = inv.qty_on_hand || 0;
@@ -1283,6 +1287,16 @@ app.post('/api/inventory/sync', async (req, res) => {
       const cost = receiveInfo.cost || price * 0.4 || 0;
       const valueOnHand = qtyOnHand * cost;
       const retailValueOnHand = qtyOnHand * price;
+      
+      // Aggregate inventory value by category
+      const category = receiveInfo.category || 'Uncategorized';
+      if (!categoryInventory[category]) {
+        categoryInventory[category] = { value: 0, items: 0, qty: 0 };
+      }
+      categoryInventory[category].value += valueOnHand;
+      categoryInventory[category].items += 1;
+      categoryInventory[category].qty += qtyOnHand;
+      totalInventoryValue += valueOnHand;
       
       // Categorize by days since received
       let bucket = 'fresh';
@@ -1338,7 +1352,57 @@ app.post('/api/inventory/sync', async (req, res) => {
     deadStockItems.sort((a, b) => b.daysSinceReceived - a.daysSinceReceived);
     console.log(`Found ${deadStockItems.length} items 45+ days old`);
     
-    // ========== STEP 6: Save to cache ==========
+    // ========== STEP 7: Calculate category balance (inventory % vs sales %) ==========
+    console.log('Calculating category balance...');
+    
+    // Get sales by category (last 90 days for relevance)
+    const categorySalesResult = await pool.query(`
+      SELECT 
+        category,
+        SUM(total_amount) as total_sales,
+        COUNT(*) as transaction_count
+      FROM sales_transactions
+      WHERE category IS NOT NULL 
+        AND category != 'Uncategorized'
+        AND transaction_date > NOW() - INTERVAL '90 days'
+      GROUP BY category
+      ORDER BY total_sales DESC
+    `);
+    
+    const categorySales = {};
+    let totalSalesValue = 0;
+    for (const row of categorySalesResult.rows) {
+      categorySales[row.category] = parseFloat(row.total_sales) || 0;
+      totalSalesValue += categorySales[row.category];
+    }
+    
+    // Build category balance array
+    const allCategories = new Set([...Object.keys(categoryInventory), ...Object.keys(categorySales)]);
+    const categoryBalance = [];
+    
+    for (const category of allCategories) {
+      const invValue = categoryInventory[category]?.value || 0;
+      const salesValue = categorySales[category] || 0;
+      const invPct = totalInventoryValue > 0 ? Math.round((invValue / totalInventoryValue) * 100) : 0;
+      const salesPct = totalSalesValue > 0 ? Math.round((salesValue / totalSalesValue) * 100) : 0;
+      const gap = salesPct - invPct; // Positive = undersupplied (selling well), Negative = oversupplied
+      
+      categoryBalance.push({
+        category,
+        inventoryValue: Math.round(invValue),
+        inventoryPct: invPct,
+        salesValue: Math.round(salesValue),
+        salesPct: salesPct,
+        gap: gap,
+        status: gap >= 5 ? 'undersupplied' : gap <= -5 ? 'oversupplied' : 'balanced'
+      });
+    }
+    
+    // Sort by sales % descending
+    categoryBalance.sort((a, b) => b.salesPct - a.salesPct);
+    console.log(`Calculated balance for ${categoryBalance.length} categories`);
+    
+    // ========== STEP 8: Save to cache ==========
     const analysisData = {
       deadStock: {
         summary: {
@@ -1375,6 +1439,7 @@ app.post('/api/inventory/sync', async (req, res) => {
         byCategory: categoryVelocity,
         byVendor: vendorVelocity
       },
+      categoryBalance: categoryBalance,
       stats: {
         totalItemsAnalyzed: allInventory.length,
         totalItemsWithReceiveData: Object.keys(itemReceiveData).length,

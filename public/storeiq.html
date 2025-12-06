@@ -708,6 +708,90 @@
       font-weight: 500;
     }
 
+    /* Category Balance */
+    .balance-legend {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 16px;
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .legend-dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .legend-dot.inventory {
+      background: #94a3b8;
+    }
+
+    .legend-dot.sales {
+      background: #e91e8a;
+    }
+
+    .balance-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .balance-category {
+      width: 110px;
+      font-weight: 500;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .balance-bars {
+      flex: 1;
+    }
+
+    .balance-bar-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .balance-bar {
+      height: 14px;
+      border-radius: 3px;
+      font-size: 0.7rem;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding-left: 6px;
+      min-width: 30px;
+    }
+
+    .balance-bar.inventory {
+      background: #94a3b8;
+    }
+
+    .balance-bar.sales {
+      background: #e91e8a;
+    }
+
+    .balance-status {
+      width: 30px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .balance-hint {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 16px;
+      text-align: center;
+    }
+
     /* Empty States & Loading */
     .empty-state {
       padding: 60px 20px;
@@ -1558,32 +1642,50 @@
     }
 
     function renderCategoryBalance() {
-      // This needs both sales and inventory data
-      if (!categories.length) {
-        document.getElementById('categoryBalance').innerHTML = '<p>Not enough data yet</p>';
+      // Use the new categoryBalance data from inventory API
+      if (!inventoryData?.categoryBalance?.length) {
+        document.getElementById('categoryBalance').innerHTML = '<p class="item-meta">Run inventory sync to see category balance</p>';
         return;
       }
       
-      const totalSales = categories.reduce((sum, c) => sum + c.revenue, 0);
+      const balance = inventoryData.categoryBalance;
       
-      const balanceHtml = categories.slice(0, 8).map(cat => {
-        const salesPct = totalSales > 0 ? Math.round((cat.revenue / totalSales) * 100) : 0;
-        // For now we don't have inventory % - would need to add that to the API
-        // Placeholder showing sales contribution
+      const balanceHtml = balance.slice(0, 10).map(cat => {
+        const maxPct = Math.max(cat.inventoryPct, cat.salesPct, 1);
+        const invWidth = (cat.inventoryPct / maxPct) * 100;
+        const salesWidth = (cat.salesPct / maxPct) * 100;
+        
+        let statusIcon = '✓';
+        let statusColor = '#10b981';
+        if (cat.status === 'oversupplied') {
+          statusIcon = '⚠️';
+          statusColor = '#f59e0b';
+        } else if (cat.status === 'undersupplied') {
+          statusIcon = '🔥';
+          statusColor = '#3b82f6';
+        }
+        
         return `
-          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-            <div style="width: 100px; font-weight: 500; font-size: 0.9rem;">${cat.name}</div>
-            <div style="flex: 1; height: 20px; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
-              <div style="width: ${salesPct}%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
+          <div class="balance-row">
+            <div class="balance-category">${cat.category}</div>
+            <div class="balance-bars">
+              <div class="balance-bar-group">
+                <div class="balance-bar inventory" style="width: ${invWidth}%;">${cat.inventoryPct}%</div>
+                <div class="balance-bar sales" style="width: ${salesWidth}%;">${cat.salesPct}%</div>
+              </div>
             </div>
-            <div style="width: 50px; text-align: right; font-size: 0.85rem; color: #666;">${salesPct}%</div>
+            <div class="balance-status" style="color: ${statusColor};">${statusIcon}</div>
           </div>
         `;
       }).join('');
       
       document.getElementById('categoryBalance').innerHTML = `
-        <p style="font-size: 0.8rem; color: #888; margin-bottom: 16px;">% of Total Sales</p>
+        <div class="balance-legend">
+          <span><span class="legend-dot inventory"></span> Inventory %</span>
+          <span><span class="legend-dot sales"></span> Sales %</span>
+        </div>
         ${balanceHtml}
+        <p class="balance-hint">🔥 Hot seller (understocked) · ⚠️ Overstocked · ✓ Balanced</p>
       `;
     }
 
