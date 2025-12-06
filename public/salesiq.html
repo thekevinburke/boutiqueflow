@@ -106,93 +106,6 @@
       line-height: 1.6;
     }
 
-    /* Heatmap Section */
-    .heatmap-section {
-      background: white;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .heatmap-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    .heatmap-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #222;
-    }
-
-    .heatmap-legend {
-      display: flex;
-      gap: 16px;
-    }
-
-    .heatmap-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.75rem;
-      color: #666;
-    }
-
-    .heatmap-legend-color {
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
-    }
-
-    .heatmap-legend-color.low { background: #f0f0f0; }
-    .heatmap-legend-color.medium { background: #fde68a; }
-    .heatmap-legend-color.high { background: #fbbf24; }
-    .heatmap-legend-color.peak { background: #f59e0b; }
-
-    .heatmap-grid {
-      display: grid;
-      grid-template-columns: 50px repeat(10, 1fr);
-      gap: 4px;
-    }
-
-    .heatmap-header-cell {
-      text-align: center;
-      font-size: 0.7rem;
-      color: #888;
-      padding: 8px 4px;
-    }
-
-    .heatmap-row-label {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding-right: 8px;
-      font-size: 0.75rem;
-      color: #666;
-      font-weight: 500;
-    }
-
-    .heatmap-cell {
-      aspect-ratio: 1;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.65rem;
-      font-weight: 600;
-      color: #666;
-      min-height: 32px;
-    }
-
-    .heatmap-cell.low { background: #f5f5f5; color: #999; }
-    .heatmap-cell.medium { background: #fef3c7; color: #92400e; }
-    .heatmap-cell.high { background: #fde68a; color: #78350f; }
-    .heatmap-cell.peak { background: #fbbf24; color: #451a03; }
-    .heatmap-cell.closed { background: #f0f0f0; color: #ccc; }
-
     /* Hours Analysis */
     .hours-analysis {
       background: white;
@@ -585,42 +498,12 @@
       </div>
     </div>
 
-    <!-- Hourly Heatmap -->
-    <div class="heatmap-section">
-      <div class="heatmap-header">
-        <div class="heatmap-title">Sales by Day & Hour</div>
-        <div class="heatmap-legend">
-          <div class="heatmap-legend-item">
-            <div class="heatmap-legend-color low"></div>
-            <span>Slow</span>
-          </div>
-          <div class="heatmap-legend-item">
-            <div class="heatmap-legend-color medium"></div>
-            <span>Moderate</span>
-          </div>
-          <div class="heatmap-legend-item">
-            <div class="heatmap-legend-color high"></div>
-            <span>Busy</span>
-          </div>
-          <div class="heatmap-legend-item">
-            <div class="heatmap-legend-color peak"></div>
-            <span>Peak</span>
-          </div>
-        </div>
-      </div>
-      <div class="heatmap-container">
-        <div class="heatmap-grid" id="heatmapGrid">
-          <!-- Rendered by JS -->
-        </div>
-      </div>
-    </div>
   </div>
 
   <script>
     // State - will be populated from API
     let dailySales = [];
     let categories = [];
-    let heatmapData = { hours: [], days: [], values: [] };
     let hourlyAvg = [];
     let syncedAt = null;
     let isLoading = true;
@@ -689,11 +572,6 @@
           change: 0 // We'll add period-over-period comparison later
         }));
         
-        // Heatmap data
-        if (data.heatmap) {
-          heatmapData = data.heatmap;
-        }
-        
         // Hourly averages
         hourlyAvg = data.hourlyAvg || [];
         
@@ -750,7 +628,6 @@
       `;
       document.getElementById('categoryGrid').innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No category data</div>';
       document.getElementById('hourlyBarChart').innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No hourly data</div>';
-      document.getElementById('heatmapGrid').innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No heatmap data</div>';
     }
 
     async function triggerSync() {
@@ -764,7 +641,6 @@
     }
 
     function renderAll() {
-      renderHeatmap();
       renderHourlyChart();
       renderDayGrid();
       renderCategoryGrid();
@@ -804,39 +680,6 @@
       }
       
       document.getElementById('aiInsight').textContent = insight || 'Analyzing your sales patterns...';
-    }
-
-    // Render heatmap
-    function renderHeatmap() {
-      const grid = document.getElementById('heatmapGrid');
-      
-      if (!heatmapData.values || heatmapData.values.length === 0 || heatmapData.values.flat().every(v => v === 0)) {
-        grid.innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No heatmap data available</div>';
-        return;
-      }
-      
-      const maxVal = Math.max(...heatmapData.values.flat().filter(v => v > 0));
-      
-      let html = '<div class="heatmap-header-cell"></div>';
-      heatmapData.hours.forEach(hour => {
-        html += `<div class="heatmap-header-cell">${hour}</div>`;
-      });
-      
-      heatmapData.days.forEach((day, dayIndex) => {
-        html += `<div class="heatmap-row-label">${day}</div>`;
-        heatmapData.values[dayIndex].forEach(val => {
-          let level = 'low';
-          if (val === 0) level = 'closed';
-          else if (val > maxVal * 0.7) level = 'peak';
-          else if (val > maxVal * 0.4) level = 'high';
-          else if (val > maxVal * 0.2) level = 'medium';
-          
-          const display = val === 0 ? '—' : '$' + val;
-          html += `<div class="heatmap-cell ${level}">${display}</div>`;
-        });
-      });
-      
-      grid.innerHTML = html;
     }
 
     // Render hourly bar chart
