@@ -2683,13 +2683,23 @@ app.post('/api/reviewiq/send', async (req, res) => {
           type: 'event',
           attributes: {
             profile: {
-              email: customer.email,
-              phone_number: customer.phone,
-              first_name: customer.first_name,
-              last_name: customer.last_name
+              data: {
+                type: 'profile',
+                attributes: {
+                  email: customer.email,
+                  phone_number: customer.phone,
+                  first_name: customer.first_name,
+                  last_name: customer.last_name
+                }
+              }
             },
             metric: {
-              name: 'Review Request Sent'
+              data: {
+                type: 'metric',
+                attributes: {
+                  name: 'Review Request Sent'
+                }
+              }
             },
             properties: {
               message: message,
@@ -2705,7 +2715,8 @@ app.post('/api/reviewiq/send', async (req, res) => {
         headers: {
           'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
           'Content-Type': 'application/json',
-          'revision': '2024-02-15'
+          'Accept': 'application/json',
+          'revision': '2023-06-15'
         },
         body: JSON.stringify(klaviyoPayload)
       });
