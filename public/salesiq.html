@@ -646,13 +646,17 @@
       return categoryIcons[name] || categoryIcons['default'];
     }
 
+    // Current date range in days
+    let currentDays = 90;
+
     // Fetch data from API
-    async function loadSalesData() {
+    async function loadSalesData(days = 90) {
       try {
         isLoading = true;
+        currentDays = days;
         updateDataStatus('loading');
         
-        const response = await fetch('/api/sales/analysis');
+        const response = await fetch(`/api/sales/analysis?days=${days}`);
         const data = await response.json();
         
         if (data.error) {
@@ -923,13 +927,12 @@
       document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
       
-      // TODO: In the future, pass range to API and re-fetch data
-      // For now, show a message
-      const rangeLabel = { week: '7 days', month: '30 days', quarter: '90 days', year: '365 days' }[range];
-      console.log(`Would fetch data for ${rangeLabel}`);
+      // Map range to days
+      const daysMap = { week: 7, month: 30, quarter: 90, year: 365 };
+      const days = daysMap[range] || 90;
       
-      // Re-generate insight based on range (placeholder - would come from API)
-      generateAIInsight();
+      // Reload data with new date range
+      loadSalesData(days);
     }
   </script>
 </body>
