@@ -2662,20 +2662,10 @@ app.get('/api/reviewiq/test-klaviyo', async (req, res) => {
         type: 'event',
         attributes: {
           profile: {
-            data: {
-              type: 'profile',
-              attributes: {
-                email: 'test@boutiqueflow.ai'
-              }
-            }
+            email: 'test@boutiqueflow.ai'
           },
           metric: {
-            data: {
-              type: 'metric',
-              attributes: {
-                name: 'Review Request Sent'
-              }
-            }
+            name: 'Review Request Sent'
           },
           properties: {
             message: 'Test message from BoutiqueFlow',
@@ -2743,23 +2733,13 @@ app.post('/api/reviewiq/send', async (req, res) => {
           type: 'event',
           attributes: {
             profile: {
-              data: {
-                type: 'profile',
-                attributes: {
-                  email: customer.email,
-                  phone_number: customer.phone,
-                  first_name: customer.first_name,
-                  last_name: customer.last_name
-                }
-              }
+              email: customer.email,
+              phone_number: customer.phone,
+              first_name: customer.first_name,
+              last_name: customer.last_name
             },
             metric: {
-              data: {
-                type: 'metric',
-                attributes: {
-                  name: 'Review Request Sent'
-                }
-              }
+              name: 'Review Request Sent'
             },
             properties: {
               message: message,
