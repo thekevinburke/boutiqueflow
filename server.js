@@ -1702,7 +1702,7 @@ async function runNightlySync() {
         cust.first_name || '',
         cust.last_name || '',
         cust.email || cust.emails?.[0]?.address || null,
-        cust.phone || cust.phones?.[0]?.number || null,
+        cust.phone_number || cust.phone || cust.phones?.[0]?.number || null,
         parseInt(stats.total_purchases) || 0,
         parseFloat(stats.lifetime_value) || 0,
         stats.first_purchase || null,
