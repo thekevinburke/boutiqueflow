@@ -519,17 +519,20 @@
         </div>
         <p class="page-subtitle">Sales patterns and timing insights</p>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <div class="date-controls">
-          <button class="date-btn" onclick="setDateRange('week')">Week</button>
-          <button class="date-btn active" onclick="setDateRange('month')">Month</button>
-          <button class="date-btn" onclick="setDateRange('quarter')">3 Months</button>
-          <button class="date-btn" onclick="setDateRange('year')">Year</button>
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="date-controls">
+            <button class="date-btn" onclick="setDateRange('week')">Week</button>
+            <button class="date-btn active" onclick="setDateRange('month')">Month</button>
+            <button class="date-btn" onclick="setDateRange('quarter')">3 Months</button>
+            <button class="date-btn" onclick="setDateRange('year')">Year</button>
+          </div>
+          <div class="data-status">
+            <span class="data-status-dot"></span>
+            Sample data
+          </div>
         </div>
-        <div class="data-status">
-          <span class="data-status-dot"></span>
-          Sample data
-        </div>
+        <div id="dateRangeLabel" style="font-size: 0.85rem; color: #666; font-weight: 500;"></div>
       </div>
     </div>
 
@@ -647,10 +650,11 @@
     }
 
     // Current date range in days
-    let currentDays = 90;
+    let currentDays = 30;
+    let dateRangeLabel = '';
 
     // Fetch data from API
-    async function loadSalesData(days = 90) {
+    async function loadSalesData(days = 30) {
       try {
         isLoading = true;
         currentDays = days;
@@ -695,6 +699,10 @@
         
         // Sync timestamp
         syncedAt = data.syncedAt;
+        
+        // Date range label
+        dateRangeLabel = data.dateRangeLabel || '';
+        document.getElementById('dateRangeLabel').textContent = dateRangeLabel;
         
         isLoading = false;
         updateDataStatus('live');
@@ -929,7 +937,7 @@
       
       // Map range to days
       const daysMap = { week: 7, month: 30, quarter: 90, year: 365 };
-      const days = daysMap[range] || 90;
+      const days = daysMap[range] || 30;
       
       // Reload data with new date range
       loadSalesData(days);
