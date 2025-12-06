@@ -1368,11 +1368,11 @@
       let items = inventoryData.deadStock.items;
       
       if (currentFilter === 60) {
-        items = items.filter(item => item.daysStagnant >= 60 && item.daysStagnant < 90);
+        items = items.filter(item => item.daysSinceReceived >= 60 && item.daysSinceReceived < 90);
       } else if (currentFilter === 90) {
-        items = items.filter(item => item.daysStagnant >= 90 && item.daysStagnant < 120);
+        items = items.filter(item => item.daysSinceReceived >= 90 && item.daysSinceReceived < 120);
       } else if (currentFilter === 120) {
-        items = items.filter(item => item.daysStagnant >= 120);
+        items = items.filter(item => item.daysSinceReceived >= 120);
       }
       
       if (items.length === 0) {
@@ -1391,9 +1391,9 @@
           <div><div class="item-name">${item.name}</div></div>
           <div class="item-meta">${item.vendor}</div>
           <div class="item-meta">${item.category || '-'}</div>
-          <div><strong>${item.qty}</strong></div>
+          <div><strong>${item.qtyRemaining}</strong></div>
           <div class="price">$${item.price}</div>
-          <div><span class="days-badge ${getDaysBadgeClass(item.daysStagnant)}">${item.daysStagnant} days</span></div>
+          <div><span class="days-badge ${getDaysBadgeClass(item.daysSinceReceived)}">${item.daysSinceReceived} days</span></div>
           <div class="suggested-action">${item.suggestedMarkdown}</div>
         </div>
       `).join('');
