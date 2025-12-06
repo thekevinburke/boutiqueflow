@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StoreIQ - BoutiqueFlow</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .header {
+      background: white;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #222;
+    }
+
+    .logo span {
+      color: #e91e8a;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: #222;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .page-title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      margin: 0;
+      color: #222;
+    }
+
+    .pro-badge {
+      background: linear-gradient(135deg, #e91e8a 0%, #ff6b9d 100%);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .page-subtitle {
+      color: #666;
+      margin: 0;
+    }
+
+    .header-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .date-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .date-btn {
+      padding: 8px 16px;
+      border: 1px solid #e0e0e0;
+      background: white;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .date-btn:hover {
+      border-color: #e91e8a;
+    }
+
+    .date-btn.active {
+      background: #e91e8a;
+      color: white;
+      border-color: #e91e8a;
+    }
+
+    .data-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .data-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+
+    #dateRangeLabel {
+      font-size: 0.85rem;
+      color: #666;
+      font-weight: 500;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      background: white;
+      padding: 8px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .tab-btn {
+      padding: 12px 24px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn:hover {
+      background: #f5f5f5;
+      color: #222;
+    }
+
+    .tab-btn.active {
+      background: #e91e8a;
+      color: white;
+    }
+
+    .tab-icon {
+      font-size: 1.1rem;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* AI Insight Box */
+    .insight-box {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .insight-icon {
+      font-size: 1.5rem;
+    }
+
+    .insight-content h4 {
+      color: #92400e;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    .insight-content {
+      color: #78350f;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .insight-content ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .insight-content li {
+      margin-bottom: 4px;
+    }
+
+    /* Panel Styles */
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      font-weight: 600;
+      color: #222;
+      font-size: 1rem;
+    }
+
+    /* Two Column Layout */
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Hours Analysis */
+    .hours-bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      height: 180px;
+      padding: 0 10px;
+    }
+
+    .hour-bar-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+    }
+
+    .hour-bar {
+      width: 100%;
+      max-width: 48px;
+      border-radius: 4px 4px 0 0;
+      transition: all 0.3s ease;
+    }
+
+    .hour-bar.low { background: #e5e5e5; }
+    .hour-bar.medium { background: #fde68a; }
+    .hour-bar.high { background: #fbbf24; }
+    .hour-bar.peak { background: #f59e0b; }
+
+    .hour-label {
+      font-size: 0.7rem;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    .hour-value {
+      font-size: 0.65rem;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    /* Day Grid */
+    .time-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .time-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .time-label {
+      width: 40px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #666;
+    }
+
+    .time-bar-container {
+      flex: 1;
+      height: 28px;
+      background: #f5f5f5;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .time-bar {
+      height: 100%;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+      transition: width 0.5s ease;
+    }
+
+    .time-bar.regular { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+    .time-bar.best { background: linear-gradient(90deg, #34d399, #10b981); }
+
+    .time-transactions {
+      font-size: 0.75rem;
+      color: #888;
+      width: 80px;
+      text-align: right;
+    }
+
+    /* Category Grid */
+    .category-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .category-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .category-icon {
+      font-size: 1.25rem;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      border-radius: 8px;
+    }
+
+    .category-info {
+      flex: 1;
+    }
+
+    .category-name {
+      font-weight: 500;
+      color: #222;
+      font-size: 0.9rem;
+    }
+
+    .category-revenue {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .category-transactions {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    /* Velocity Cards */
+    .velocity-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .velocity-section {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .velocity-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .velocity-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .velocity-rank {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #666;
+    }
+
+    .velocity-rank.fast {
+      background: #d1fae5;
+      color: #059669;
+    }
+
+    .velocity-rank.slow {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .velocity-info {
+      flex: 1;
+    }
+
+    .velocity-name {
+      font-weight: 500;
+      color: #222;
+      font-size: 0.9rem;
+    }
+
+    .velocity-meta {
+      font-size: 0.75rem;
+      color: #888;
+    }
+
+    .velocity-days {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #222;
+    }
+
+    .velocity-days.fast {
+      color: #059669;
+    }
+
+    .velocity-days.slow {
+      color: #dc2626;
+    }
+
+    /* Stats Row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .stats-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .stat-card.active {
+      border-color: #e91e8a;
+    }
+
+    .stat-card.warning {
+      border-left: 4px solid #f59e0b;
+    }
+
+    .stat-card.danger {
+      border-left: 4px solid #dc2626;
+    }
+
+    .stat-card.critical {
+      border-left: 4px solid #7c2d12;
+    }
+
+    .stat-number {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .stat-value {
+      font-size: 0.8rem;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* Filter Pills */
+    .filter-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      padding: 8px 16px;
+      border: 1px solid #e0e0e0;
+      background: white;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-pill:hover {
+      border-color: #e91e8a;
+    }
+
+    .filter-pill.active {
+      background: #e91e8a;
+      color: white;
+      border-color: #e91e8a;
+    }
+
+    /* Data Table */
+    .data-table {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .table-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 0.5fr 0.75fr 0.75fr 1fr;
+      padding: 16px 20px;
+      background: #f9f9f9;
+      font-weight: 600;
+      font-size: 0.8rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 0.5fr 0.75fr 0.75fr 1fr;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      align-items: center;
+      transition: background 0.2s;
+    }
+
+    .table-row:hover {
+      background: #fafafa;
+    }
+
+    .item-name {
+      font-weight: 500;
+      color: #222;
+    }
+
+    .item-meta {
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .price {
+      font-weight: 600;
+      color: #222;
+    }
+
+    .days-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .days-badge.warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .days-badge.danger {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .days-badge.critical {
+      background: #7c2d12;
+      color: white;
+    }
+
+    .suggested-action {
+      font-size: 0.85rem;
+      color: #e91e8a;
+      font-weight: 500;
+    }
+
+    /* Empty States & Loading */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: #666;
+    }
+
+    .empty-state .icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+
+    .empty-state h3 {
+      color: #222;
+      margin-bottom: 8px;
+    }
+
+    .loading {
+      padding: 60px 20px;
+      text-align: center;
+      color: #666;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f0f0f0;
+      border-top-color: #e91e8a;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Sync Button */
+    .sync-btn {
+      padding: 10px 20px;
+      background: #e91e8a;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .sync-btn:hover {
+      background: #d1177b;
+    }
+
+    .sync-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">Boutique<span>Flow</span></div>
+    <nav class="nav-links">
+      <a href="/">🏠 Dashboard</a>
+      <a href="/storeiq.html">📊 StoreIQ</a>
+      <a href="/reviewai.html">⭐ ReviewAI</a>
+      <a href="/retargetai.html">🎯 RetargetAI</a>
+      <a href="/firstdibsai.html">💎 First Dibs</a>
+    </nav>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <div class="page-title-row">
+          <h1 class="page-title">StoreIQ</h1>
+          <span class="pro-badge">Pro</span>
+        </div>
+        <p class="page-subtitle">Your complete store intelligence dashboard</p>
+      </div>
+      <div class="header-controls">
+        <div class="header-row">
+          <div class="date-controls">
+            <button class="date-btn" onclick="setDateRange('week')">Week</button>
+            <button class="date-btn active" onclick="setDateRange('month')">Month</button>
+            <button class="date-btn" onclick="setDateRange('quarter')">3 Months</button>
+            <button class="date-btn" onclick="setDateRange('year')">Year</button>
+          </div>
+          <div class="data-status">
+            <span class="data-status-dot"></span>
+            Loading...
+          </div>
+        </div>
+        <div id="dateRangeLabel"></div>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('overview')">
+        <span class="tab-icon">📊</span> Overview
+      </button>
+      <button class="tab-btn" onclick="switchTab('sales')">
+        <span class="tab-icon">💰</span> Sales Patterns
+      </button>
+      <button class="tab-btn" onclick="switchTab('inventory')">
+        <span class="tab-icon">📦</span> Inventory Health
+      </button>
+      <button class="tab-btn" onclick="switchTab('vendors')">
+        <span class="tab-icon">🏷️</span> Vendors
+      </button>
+    </div>
+
+    <!-- AI Insight Box (shows on all tabs) -->
+    <div class="insight-box">
+      <div class="insight-icon">💡</div>
+      <div class="insight-content">
+        <h4>AI Analysis</h4>
+        <div id="aiInsight">Loading insights...</div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="tab-overview" class="tab-content active">
+      <div class="two-column">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Sales by Day of Week</span>
+          </div>
+          <div class="time-grid" id="dayGrid">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Top Categories</span>
+          </div>
+          <div class="category-grid" id="categoryGrid">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="velocity-section">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🔥 Fastest Selling Categories</span>
+          </div>
+          <div class="velocity-list" id="categoryVelocity">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🏷️ Fastest Selling Vendors</span>
+          </div>
+          <div class="velocity-list" id="vendorVelocity">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SALES PATTERNS TAB -->
+    <div id="tab-sales" class="tab-content">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Average Sales by Hour</span>
+        </div>
+        <div class="hours-bar-chart" id="hourlyBarChart">
+          <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+        </div>
+      </div>
+
+      <div class="two-column">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Sales by Day of Week</span>
+          </div>
+          <div class="time-grid" id="dayGridSales">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Category Performance</span>
+          </div>
+          <div class="category-grid" id="categoryGridSales">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY HEALTH TAB -->
+    <div id="tab-inventory" class="tab-content">
+      <div class="stats-row">
+        <div class="stat-card warning" onclick="filterByDays(60)" id="card60">
+          <div class="stat-number" id="count60">-</div>
+          <div class="stat-label">Items 60-89 Days</div>
+          <div class="stat-value" id="value60">$0 tied up</div>
+        </div>
+        <div class="stat-card danger" onclick="filterByDays(90)" id="card90">
+          <div class="stat-number" id="count90">-</div>
+          <div class="stat-label">Items 90-119 Days</div>
+          <div class="stat-value" id="value90">$0 tied up</div>
+        </div>
+        <div class="stat-card critical" onclick="filterByDays(120)" id="card120">
+          <div class="stat-number" id="count120">-</div>
+          <div class="stat-label">Items 120+ Days</div>
+          <div class="stat-value" id="value120">$0 tied up</div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <button class="filter-pill active" onclick="filterByDays('all')" id="filterAll">All Slow Stock</button>
+        <button class="filter-pill" onclick="filterByDays(60)" id="filter60">60-89 Days</button>
+        <button class="filter-pill" onclick="filterByDays(90)" id="filter90">90-119 Days</button>
+        <button class="filter-pill" onclick="filterByDays(120)" id="filter120">120+ Days</button>
+      </div>
+
+      <div class="data-table">
+        <div class="table-header">
+          <div>Item</div>
+          <div>Vendor</div>
+          <div>Category</div>
+          <div>Qty</div>
+          <div>Price</div>
+          <div>Days</div>
+          <div>Suggested</div>
+        </div>
+        <div id="tableBody">
+          <div class="loading"><div class="spinner"></div><p>Loading inventory data...</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VENDORS TAB -->
+    <div id="tab-vendors" class="tab-content">
+      <div class="velocity-section">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🏆 Vendor Report Card (by Velocity)</span>
+          </div>
+          <div class="velocity-list" id="vendorReportCard">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">📊 Category Balance</span>
+          </div>
+          <div id="categoryBalance">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ==================== STATE ====================
+    let dailySales = [];
+    let categories = [];
+    let hourlyAvg = [];
+    let syncedAt = null;
+    let inventoryData = null;
+    let currentFilter = 'all';
+    let currentDays = 30;
+    let dateRangeLabel = '';
+    let currentTab = 'overview';
+
+    // Category icons mapping
+    const categoryIcons = {
+      'Dresses': '👗', 'Tops': '👚', 'Bottoms': '👖', 'Pants': '👖', 'Jeans': '👖',
+      'Outerwear': '🧥', 'Jackets': '🧥', 'Coats': '🧥', 'Accessories': '👜',
+      'Bags': '👜', 'Shoes': '👠', 'Jewelry': '💎', 'Sweaters': '🧶',
+      'Swimwear': '👙', 'Activewear': '🏃‍♀️', 'default': '🛍️'
+    };
+
+    function getCategoryIcon(name) {
+      return categoryIcons[name] || categoryIcons['default'];
+    }
+
+    // ==================== TAB SWITCHING ====================
+    function switchTab(tabName) {
+      currentTab = tabName;
+      
+      // Update tab buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.tab-btn').classList.add('active');
+      
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      
+      // Update AI insights for the current tab
+      generateAIInsight();
+    }
+
+    // ==================== DATE RANGE ====================
+    function setDateRange(range) {
+      document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      const daysMap = { week: 7, month: 30, quarter: 90, year: 365 };
+      currentDays = daysMap[range] || 30;
+      
+      loadSalesData(currentDays);
+    }
+
+    // ==================== DATA LOADING ====================
+    async function loadSalesData(days = 30) {
+      try {
+        updateDataStatus('loading');
+        
+        const response = await fetch(`/api/sales/analysis?days=${days}`);
+        const data = await response.json();
+        
+        if (data.error) {
+          updateDataStatus('no-data');
+          showNoSalesData();
+          return;
+        }
+        
+        dailySales = data.dailySales || [];
+        if (dailySales.length > 0) {
+          const maxRevenue = Math.max(...dailySales.map(d => d.revenue));
+          dailySales = dailySales.map(d => ({
+            ...d,
+            best: d.revenue === maxRevenue && d.revenue > 0
+          }));
+        }
+        
+        categories = (data.categories || []).map(c => ({
+          ...c,
+          icon: getCategoryIcon(c.name)
+        }));
+        
+        hourlyAvg = data.hourlyAvg || [];
+        syncedAt = data.syncedAt;
+        dateRangeLabel = data.dateRangeLabel || '';
+        document.getElementById('dateRangeLabel').textContent = dateRangeLabel;
+        
+        updateDataStatus('live');
+        renderSalesData();
+        generateAIInsight();
+        
+      } catch (error) {
+        console.error('Error loading sales data:', error);
+        updateDataStatus('error');
+      }
+    }
+
+    async function loadInventoryData() {
+      try {
+        const response = await fetch('/api/inventory/data');
+        const data = await response.json();
+        
+        if (data.error === 'No data yet') {
+          showNoInventoryData();
+          return;
+        }
+        
+        inventoryData = data;
+        renderInventoryData();
+        renderVendorData();
+        generateAIInsight();
+        
+      } catch (error) {
+        console.error('Error loading inventory data:', error);
+      }
+    }
+
+    function updateDataStatus(status) {
+      const statusEl = document.querySelector('.data-status');
+      
+      if (status === 'loading') {
+        statusEl.innerHTML = '<span class="data-status-dot" style="background: #f59e0b;"></span> Loading...';
+      } else if (status === 'live') {
+        const syncTime = syncedAt ? new Date(syncedAt).toLocaleDateString() : 'Unknown';
+        statusEl.innerHTML = `<span class="data-status-dot" style="background: #10b981;"></span> Live data (synced ${syncTime})`;
+      } else if (status === 'no-data') {
+        statusEl.innerHTML = '<span class="data-status-dot" style="background: #ef4444;"></span> No data - run sync';
+      } else if (status === 'error') {
+        statusEl.innerHTML = '<span class="data-status-dot" style="background: #ef4444;"></span> Error loading';
+      }
+    }
+
+    // ==================== AI INSIGHTS ====================
+    function generateAIInsight() {
+      let bullets = [];
+      
+      // Sales insights
+      if (dailySales.length > 0) {
+        const bestDay = dailySales.find(d => d.best);
+        const avgRevenue = dailySales.reduce((sum, d) => sum + d.revenue, 0) / dailySales.length;
+        const bestDayPct = bestDay ? Math.round((bestDay.revenue / avgRevenue - 1) * 100) : 0;
+        
+        if (bestDay && bestDayPct > 0) {
+          bullets.push(`<strong>${bestDay.day}</strong> is your strongest day with ${bestDayPct}% higher sales than average`);
+        }
+        
+        if (hourlyAvg.length > 0) {
+          const sortedHours = [...hourlyAvg].sort((a, b) => b.avg - a.avg);
+          const peakHours = sortedHours.slice(0, 3).map(h => h.hour).join(', ');
+          if (peakHours) {
+            bullets.push(`Peak hours are <strong>${peakHours}</strong>`);
+          }
+        }
+        
+        if (categories.length > 0) {
+          bullets.push(`<strong>${categories[0].name}</strong> is your top-performing category`);
+        }
+      }
+      
+      // Inventory insights
+      if (inventoryData?.deadStock?.summary) {
+        const summary = inventoryData.deadStock.summary;
+        const totalStuck = summary.value60Days + summary.value90Days + summary.value120Days;
+        if (totalStuck > 0) {
+          bullets.push(`<strong>$${totalStuck.toLocaleString()}</strong> tied up in slow-moving inventory`);
+        }
+        if (summary.items120Days > 0) {
+          bullets.push(`<strong>${summary.items120Days} items</strong> over 120 days old need attention`);
+        }
+      }
+      
+      // Velocity insights
+      if (inventoryData?.velocity?.byVendor?.length > 0) {
+        const fastestVendor = inventoryData.velocity.byVendor[0];
+        bullets.push(`<strong>${fastestVendor.name}</strong> is your fastest-selling vendor (${fastestVendor.avgDaysToSell} days avg)`);
+      }
+      
+      if (bullets.length > 0) {
+        document.getElementById('aiInsight').innerHTML = '<ul>' + bullets.map(b => `<li>${b}</li>`).join('') + '</ul>';
+      } else {
+        document.getElementById('aiInsight').innerHTML = 'Sync data to see AI-powered insights about your store.';
+      }
+    }
+
+    // ==================== RENDER FUNCTIONS ====================
+    function renderSalesData() {
+      renderDayGrid();
+      renderCategoryGrid();
+      renderHourlyChart();
+    }
+
+    function renderDayGrid() {
+      const containers = [document.getElementById('dayGrid'), document.getElementById('dayGridSales')];
+      
+      containers.forEach(container => {
+        if (!container) return;
+        
+        if (dailySales.length === 0 || dailySales.every(d => d.revenue === 0)) {
+          container.innerHTML = '<div class="empty-state"><p>No daily sales data available</p></div>';
+          return;
+        }
+        
+        const maxRev = Math.max(...dailySales.map(d => d.revenue));
+        
+        container.innerHTML = dailySales.map(d => {
+          const widthPct = maxRev > 0 ? (d.revenue / maxRev) * 100 : 0;
+          return `
+            <div class="time-row">
+              <div class="time-label">${d.day}</div>
+              <div class="time-bar-container">
+                <div class="time-bar ${d.best ? 'best' : 'regular'}" style="width: ${widthPct}%;">
+                  $${d.revenue.toLocaleString()}
+                </div>
+              </div>
+              <div class="time-transactions">${d.transactions} txns</div>
+            </div>
+          `;
+        }).join('');
+      });
+    }
+
+    function renderCategoryGrid() {
+      const containers = [document.getElementById('categoryGrid'), document.getElementById('categoryGridSales')];
+      
+      containers.forEach(container => {
+        if (!container) return;
+        
+        if (categories.length === 0) {
+          container.innerHTML = '<div class="empty-state"><p>No category data available</p></div>';
+          return;
+        }
+        
+        container.innerHTML = categories.slice(0, 6).map(c => `
+          <div class="category-row">
+            <div class="category-icon">${c.icon}</div>
+            <div class="category-info">
+              <div class="category-name">${c.name}</div>
+              <div class="category-revenue">$${c.revenue.toLocaleString()}</div>
+            </div>
+            <div class="category-transactions">${c.transactions} sales</div>
+          </div>
+        `).join('');
+      });
+    }
+
+    function renderHourlyChart() {
+      const container = document.getElementById('hourlyBarChart');
+      
+      if (hourlyAvg.length === 0 || hourlyAvg.every(h => h.avg === 0)) {
+        container.innerHTML = '<div class="empty-state"><p>No hourly data available</p></div>';
+        return;
+      }
+      
+      const maxAvg = Math.max(...hourlyAvg.map(h => h.avg));
+      
+      container.innerHTML = hourlyAvg.map(h => {
+        const heightPct = maxAvg > 0 ? (h.avg / maxAvg) * 100 : 0;
+        let level = 'low';
+        if (h.avg > maxAvg * 0.8) level = 'peak';
+        else if (h.avg > maxAvg * 0.5) level = 'high';
+        else if (h.avg > maxAvg * 0.3) level = 'medium';
+        
+        return `
+          <div class="hour-bar-container">
+            <div class="hour-value">$${h.avg}</div>
+            <div class="hour-bar ${level}" style="height: ${heightPct}%;"></div>
+            <div class="hour-label">${h.hour}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderInventoryData() {
+      if (!inventoryData) return;
+      
+      // Render velocity
+      renderVelocity();
+      
+      // Render dead stock
+      renderDeadStock();
+    }
+
+    function renderVelocity() {
+      if (!inventoryData?.velocity) return;
+      
+      // Category velocity
+      const categoryHtml = inventoryData.velocity.byCategory.slice(0, 6).map((cat, i) => {
+        const speedClass = cat.avgDaysToSell <= 30 ? 'fast' : cat.avgDaysToSell >= 60 ? 'slow' : '';
+        const rankClass = i < 2 ? 'fast' : i >= 4 ? 'slow' : '';
+        return `
+          <div class="velocity-item">
+            <div class="velocity-rank ${rankClass}">${i + 1}</div>
+            <div class="velocity-info">
+              <div class="velocity-name">${cat.name}</div>
+              <div class="velocity-meta">${cat.itemsSold} items sold</div>
+            </div>
+            <div class="velocity-days ${speedClass}">${cat.avgDaysToSell} days</div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('categoryVelocity').innerHTML = categoryHtml || '<p class="item-meta">Not enough data yet</p>';
+      
+      // Vendor velocity
+      const vendorHtml = inventoryData.velocity.byVendor.slice(0, 6).map((vendor, i) => {
+        const speedClass = vendor.avgDaysToSell <= 30 ? 'fast' : vendor.avgDaysToSell >= 60 ? 'slow' : '';
+        const rankClass = i < 2 ? 'fast' : i >= 4 ? 'slow' : '';
+        return `
+          <div class="velocity-item">
+            <div class="velocity-rank ${rankClass}">${i + 1}</div>
+            <div class="velocity-info">
+              <div class="velocity-name">${vendor.name}</div>
+              <div class="velocity-meta">${vendor.itemsSold} items sold</div>
+            </div>
+            <div class="velocity-days ${speedClass}">${vendor.avgDaysToSell} days</div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('vendorVelocity').innerHTML = vendorHtml || '<p class="item-meta">Not enough data yet</p>';
+    }
+
+    function renderDeadStock() {
+      if (!inventoryData?.deadStock) return;
+      
+      const summary = inventoryData.deadStock.summary;
+      
+      document.getElementById('count60').textContent = summary.items60Days;
+      document.getElementById('count90').textContent = summary.items90Days;
+      document.getElementById('count120').textContent = summary.items120Days;
+      
+      document.getElementById('value60').textContent = '$' + summary.value60Days.toLocaleString() + ' tied up';
+      document.getElementById('value90').textContent = '$' + summary.value90Days.toLocaleString() + ' tied up';
+      document.getElementById('value120').textContent = '$' + summary.value120Days.toLocaleString() + ' tied up';
+      
+      renderTable();
+    }
+
+    function filterByDays(days) {
+      currentFilter = days;
+      
+      document.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active'));
+      document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('active'));
+      
+      if (days === 'all') {
+        document.getElementById('filterAll').classList.add('active');
+      } else if (days === 60) {
+        document.getElementById('filter60').classList.add('active');
+        document.getElementById('card60').classList.add('active');
+      } else if (days === 90) {
+        document.getElementById('filter90').classList.add('active');
+        document.getElementById('card90').classList.add('active');
+      } else if (days === 120) {
+        document.getElementById('filter120').classList.add('active');
+        document.getElementById('card120').classList.add('active');
+      }
+      
+      renderTable();
+    }
+
+    function renderTable() {
+      if (!inventoryData?.deadStock?.items) {
+        document.getElementById('tableBody').innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎉</div>
+            <h3>No slow-moving inventory!</h3>
+            <p>All your inventory is moving well. Great job!</p>
+          </div>
+        `;
+        return;
+      }
+      
+      let items = inventoryData.deadStock.items;
+      
+      if (currentFilter === 60) {
+        items = items.filter(item => item.daysStagnant >= 60 && item.daysStagnant < 90);
+      } else if (currentFilter === 90) {
+        items = items.filter(item => item.daysStagnant >= 90 && item.daysStagnant < 120);
+      } else if (currentFilter === 120) {
+        items = items.filter(item => item.daysStagnant >= 120);
+      }
+      
+      if (items.length === 0) {
+        document.getElementById('tableBody').innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎉</div>
+            <h3>No items in this category!</h3>
+            <p>Great news - no items match this filter.</p>
+          </div>
+        `;
+        return;
+      }
+      
+      document.getElementById('tableBody').innerHTML = items.map(item => `
+        <div class="table-row">
+          <div><div class="item-name">${item.name}</div></div>
+          <div class="item-meta">${item.vendor}</div>
+          <div class="item-meta">${item.category || '-'}</div>
+          <div><strong>${item.qty}</strong></div>
+          <div class="price">$${item.price}</div>
+          <div><span class="days-badge ${getDaysBadgeClass(item.daysStagnant)}">${item.daysStagnant} days</span></div>
+          <div class="suggested-action">${item.suggestedMarkdown}</div>
+        </div>
+      `).join('');
+    }
+
+    function getDaysBadgeClass(days) {
+      if (days >= 120) return 'critical';
+      if (days >= 90) return 'danger';
+      return 'warning';
+    }
+
+    function renderVendorData() {
+      // Vendor Report Card (same as vendor velocity but with more context)
+      if (inventoryData?.velocity?.byVendor) {
+        const vendorHtml = inventoryData.velocity.byVendor.slice(0, 10).map((vendor, i) => {
+          let grade = 'A';
+          let gradeColor = '#059669';
+          if (vendor.avgDaysToSell > 60) { grade = 'C'; gradeColor = '#dc2626'; }
+          else if (vendor.avgDaysToSell > 45) { grade = 'B'; gradeColor = '#f59e0b'; }
+          
+          return `
+            <div class="velocity-item">
+              <div class="velocity-rank" style="background: ${gradeColor}20; color: ${gradeColor}; font-weight: 700;">${grade}</div>
+              <div class="velocity-info">
+                <div class="velocity-name">${vendor.name}</div>
+                <div class="velocity-meta">${vendor.itemsSold} items sold</div>
+              </div>
+              <div class="velocity-days" style="color: ${gradeColor};">${vendor.avgDaysToSell} days</div>
+            </div>
+          `;
+        }).join('');
+        
+        document.getElementById('vendorReportCard').innerHTML = vendorHtml || '<p>Not enough data yet</p>';
+      }
+      
+      // Category Balance - compare % of inventory vs % of sales
+      renderCategoryBalance();
+    }
+
+    function renderCategoryBalance() {
+      // This needs both sales and inventory data
+      if (!categories.length) {
+        document.getElementById('categoryBalance').innerHTML = '<p>Not enough data yet</p>';
+        return;
+      }
+      
+      const totalSales = categories.reduce((sum, c) => sum + c.revenue, 0);
+      
+      const balanceHtml = categories.slice(0, 8).map(cat => {
+        const salesPct = totalSales > 0 ? Math.round((cat.revenue / totalSales) * 100) : 0;
+        // For now we don't have inventory % - would need to add that to the API
+        // Placeholder showing sales contribution
+        return `
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 100px; font-weight: 500; font-size: 0.9rem;">${cat.name}</div>
+            <div style="flex: 1; height: 20px; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
+              <div style="width: ${salesPct}%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa);"></div>
+            </div>
+            <div style="width: 50px; text-align: right; font-size: 0.85rem; color: #666;">${salesPct}%</div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('categoryBalance').innerHTML = `
+        <p style="font-size: 0.8rem; color: #888; margin-bottom: 16px;">% of Total Sales</p>
+        ${balanceHtml}
+      `;
+    }
+
+    function showNoSalesData() {
+      document.getElementById('dayGrid').innerHTML = '<div class="empty-state"><p>No sales data yet. Run a sync to get started.</p></div>';
+      document.getElementById('categoryGrid').innerHTML = '<div class="empty-state"><p>No data</p></div>';
+    }
+
+    function showNoInventoryData() {
+      document.getElementById('categoryVelocity').innerHTML = '<div class="empty-state"><p>No velocity data yet.</p></div>';
+      document.getElementById('vendorVelocity').innerHTML = '<div class="empty-state"><p>No velocity data yet.</p></div>';
+      document.getElementById('tableBody').innerHTML = '<div class="empty-state"><p>No inventory data yet.</p></div>';
+    }
+
+    // ==================== INITIALIZE ====================
+    loadSalesData(30);
+    loadInventoryData();
+  </script>
+</body>
+</html>
