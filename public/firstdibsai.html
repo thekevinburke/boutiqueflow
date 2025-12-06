@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>First Dibs - BoutiqueFlow</title>
+  <title>FirstDibsAI - BoutiqueFlow</title>
   <style>
     * {
       box-sizing: border-box;
@@ -679,10 +679,10 @@
       <a href="index.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         ReceiptAI
       </a>
-      <a href="first-dibs.html" style="text-decoration: none; color: #e91e8a; font-weight: 600; font-size: 0.9rem;">
-        First Dibs
+      <a href="firstdibsai.html" style="text-decoration: none; color: #e91e8a; font-weight: 600; font-size: 0.9rem;">
+        FirstDibsAI
       </a>
-      <a href="retargeting.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
+      <a href="retargetai.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         Retargeting
       </a>
       <a href="inventoryiq.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
@@ -691,7 +691,7 @@
       <a href="salesiq.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         SalesIQ
       </a>
-      <a href="reviewiq.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
+      <a href="reviewai.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         ReviewIQ
       </a>
     </div>
@@ -701,7 +701,7 @@
     <div class="page-header">
       <div>
         <div class="page-title-row">
-          <h1 class="page-title">First Dibs</h1>
+          <h1 class="page-title">FirstDibsAI</h1>
         </div>
         <p class="page-subtitle" id="matchCount">3 VIPs ready to hear about new arrivals</p>
       </div>
@@ -782,7 +782,7 @@
         isLoading = true;
         updateProductsInfo('Loading...');
         
-        const response = await fetch('/api/first-dibs/matches?limit=30');
+        const response = await fetch('/api/firstdibsai/matches?limit=30');
         const data = await response.json();
         
         if (data.error) {
@@ -804,7 +804,7 @@
         updateResetButton();
         
       } catch (error) {
-        console.error('Error loading First Dibs matches:', error);
+        console.error('Error loading FirstDibsAI matches:', error);
         showNoDataMessage();
       }
     }
@@ -824,7 +824,7 @@
       matchQueue.innerHTML = `
         <div style="padding: 40px; text-align: center; color: #666; background: white; border-radius: 12px;">
           <p style="font-size: 1.1rem; margin-bottom: 12px;">No customer matches available yet.</p>
-          <p style="font-size: 0.9rem; color: #888;">First Dibs requires synced customer data to match new arrivals with customers who love those brands. Data syncs automatically each night.</p>
+          <p style="font-size: 0.9rem; color: #888;">FirstDibsAI requires synced customer data to match new arrivals with customers who love those brands. Data syncs automatically each night.</p>
         </div>
       `;
       matchCountEl.textContent = '0 VIPs ready to hear about new arrivals';
@@ -1040,18 +1040,42 @@
       renderPreview();
     }
 
-    function sendMessage(id) {
+    async function sendMessage(id) {
       const sendBtn = document.getElementById('sendBtn');
       sendBtn.disabled = true;
       sendBtn.innerHTML = '<span class="spinner"></span> Sending via Klaviyo...';
 
-      setTimeout(() => {
-        sentIds.push(id);
-        selectedMatchId = null;
-        renderMatchQueue();
-        renderPreview();
-        updateSentSummary();
-      }, 1500);
+      const match = mockMatches.find(m => m.id === id);
+      const message = document.getElementById('draftMessage').value;
+      
+      try {
+        const response = await fetch('/api/firstdibsai/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: match.customer.id,
+            message: message,
+            method: match.customer.phone ? 'sms' : 'email'
+          })
+        });
+        
+        if (response.ok) {
+          sentIds.push(id);
+          selectedMatchId = null;
+          renderMatchQueue();
+          renderPreview();
+          updateSentSummary();
+        } else {
+          const error = await response.json();
+          alert('Error: ' + (error.message || 'Failed to send'));
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = '✉️ Send via Klaviyo';
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '✉️ Send via Klaviyo';
+      }
     }
 
     function showMore() {

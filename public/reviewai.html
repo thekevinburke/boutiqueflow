@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReviewIQ - BoutiqueFlow</title>
+  <title>ReviewAI - BoutiqueFlow</title>
   <style>
     * {
       box-sizing: border-box;
@@ -592,18 +592,18 @@
     <a href="index.html" class="logo" style="text-decoration: none;">Boutique<span>Flow</span></a>
     <div style="display: flex; align-items: center; gap: 24px;">
       <a href="index.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">ReceiptAI</a>
-      <a href="first-dibs.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">First Dibs</a>
-      <a href="retargeting.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">Retargeting</a>
+      <a href="firstdibsai.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">FirstDibsAI</a>
+      <a href="retargetai.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">RetargetAI</a>
       <a href="inventoryiq.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">InventoryIQ</a>
       <a href="salesiq.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">SalesIQ</a>
-      <a href="reviewiq.html" style="text-decoration: none; color: #e91e8a; font-weight: 600; font-size: 0.9rem;">ReviewIQ</a>
+      <a href="reviewai.html" style="text-decoration: none; color: #e91e8a; font-weight: 600; font-size: 0.9rem;">ReviewAI</a>
     </div>
   </div>
 
   <div class="container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">ReviewIQ ⭐</h1>
+        <h1 class="page-title">ReviewAI ⭐</h1>
         <p class="page-subtitle" id="customerCount">Loading happy customers...</p>
       </div>
 
@@ -701,7 +701,7 @@
 
     async function loadCustomers() {
       try {
-        const response = await fetch('/api/reviewiq/customers');
+        const response = await fetch('/api/reviewai/customers');
         const data = await response.json();
         
         customers = data.customers || [];
@@ -893,7 +893,7 @@
           message = generateMessage(customer);
         }
         
-        const response = await fetch('/api/reviewiq/send', {
+        const response = await fetch('/api/reviewai/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -933,7 +933,7 @@
       if (!customer) return;
 
       try {
-        await fetch('/api/reviewiq/skip', {
+        await fetch('/api/reviewai/skip', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ customerId: customer.id })
@@ -957,7 +957,7 @@
       }
 
       try {
-        await fetch('/api/reviewiq/never-ask', {
+        await fetch('/api/reviewai/never-ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ customerId: customerId })

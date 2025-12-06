@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Retargeting - BoutiqueFlow</title>
+  <title>RetargetAI - BoutiqueFlow</title>
   <style>
     * {
       box-sizing: border-box;
@@ -867,11 +867,11 @@
       <a href="index.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         ReceiptAI
       </a>
-      <a href="first-dibs.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
+      <a href="firstdibsai.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         First Dibs
       </a>
-      <a href="retargeting.html" style="text-decoration: none; color: #e91e8a; font-weight: 600; font-size: 0.9rem;">
-        Retargeting
+      <a href="retargetai.html" style="text-decoration: none; color: #e91e8a; font-weight: 600; font-size: 0.9rem;">
+        RetargetAI
       </a>
       <a href="inventoryiq.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         InventoryIQ
@@ -879,7 +879,7 @@
       <a href="salesiq.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         SalesIQ
       </a>
-      <a href="reviewiq.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
+      <a href="reviewai.html" style="text-decoration: none; color: #222; font-weight: 500; font-size: 0.9rem;">
         ReviewIQ
       </a>
     </div>
@@ -889,7 +889,7 @@
     <div class="page-header">
       <div>
         <div class="page-title-row">
-          <h1 class="page-title">Retargeting</h1>
+          <h1 class="page-title">RetargetAI</h1>
         </div>
         <p class="page-subtitle" id="customerCount">8 customers ready for a win-back offer</p>
       </div>
@@ -1318,18 +1318,44 @@
       updateStats();
     }
 
-    function sendMessage(id) {
+    async function sendMessage(id) {
       const sendBtn = document.getElementById('sendBtn');
       sendBtn.disabled = true;
       sendBtn.innerHTML = '<span class="spinner"></span> Sending via Klaviyo...';
 
-      setTimeout(() => {
-        sentIds.push(id);
-        selectedCustomerId = null;
-        renderCustomerQueue();
-        renderPreview();
-        updateSentSummary();
-      }, 1500);
+      const customer = mockCustomers.find(c => c.id === id);
+      const message = document.getElementById('messageTemplate').value
+        .replace('{{first_name}}', customer.name.split(' ')[0])
+        .replace('{{last_purchase_date}}', new Date(customer.lastPurchase?.date || Date.now()).toLocaleDateString());
+      
+      try {
+        const response = await fetch('/api/retargetai/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: id,
+            message: message,
+            method: customer.phone ? 'sms' : 'email'
+          })
+        });
+        
+        if (response.ok) {
+          sentIds.push(id);
+          selectedCustomerId = null;
+          renderCustomerQueue();
+          renderPreview();
+          updateSentSummary();
+        } else {
+          const error = await response.json();
+          alert('Error: ' + (error.message || 'Failed to send'));
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = '✉️ Send via Klaviyo';
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '✉️ Send via Klaviyo';
+      }
     }
 
     function showMore() {

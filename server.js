@@ -2538,7 +2538,7 @@ pool.query(`
 `).catch(e => console.error('Error creating review_never_ask table:', e));
 
 // Get qualified customers for review requests
-app.get('/api/reviewiq/customers', async (req, res) => {
+app.get('/api/reviewai/customers', async (req, res) => {
   try {
     // Qualification criteria:
     // - $300+ lifetime value
@@ -2690,7 +2690,7 @@ app.get('/api/debug/heartland-customer/:id', async (req, res) => {
 });
 
 // Test Klaviyo connection
-app.get('/api/reviewiq/test-klaviyo', async (req, res) => {
+app.get('/api/reviewai/test-klaviyo', async (req, res) => {
   try {
     const testPayload = {
       data: {
@@ -2740,7 +2740,7 @@ app.get('/api/reviewiq/test-klaviyo', async (req, res) => {
 });
 
 // Send review request
-app.post('/api/reviewiq/send', async (req, res) => {
+app.post('/api/reviewai/send', async (req, res) => {
   try {
     const { customerId, message, method } = req.body;
     
@@ -2801,7 +2801,7 @@ app.post('/api/reviewiq/send', async (req, res) => {
         console.error('Klaviyo API error:', errorText);
         // Don't fail the whole request - still record it locally
       } else {
-        console.log(`ReviewIQ: Sent to Klaviyo - ${customer.email || customer.phone}`);
+        console.log(`ReviewAI: Sent to Klaviyo - ${customer.email || customer.phone}`);
       }
     } catch (klaviyoError) {
       console.error('Klaviyo request failed:', klaviyoError.message);
@@ -2816,7 +2816,7 @@ app.post('/api/reviewiq/send', async (req, res) => {
       DO UPDATE SET status = 'sent', sent_at = NOW(), method = $2, message = $3
     `, [customerId, method, message]);
     
-    console.log(`ReviewIQ: Sent ${method} review request to customer ${customerId}`);
+    console.log(`ReviewAI: Sent ${method} review request to customer ${customerId}`);
     
     res.json({ success: true, message: 'Review request sent to Klaviyo' });
   } catch (error) {
@@ -2826,7 +2826,7 @@ app.post('/api/reviewiq/send', async (req, res) => {
 });
 
 // Skip customer (just remove from queue for now, can be asked again later)
-app.post('/api/reviewiq/skip', async (req, res) => {
+app.post('/api/reviewai/skip', async (req, res) => {
   try {
     const { customerId } = req.body;
     
@@ -2846,7 +2846,7 @@ app.post('/api/reviewiq/skip', async (req, res) => {
 });
 
 // Never ask customer
-app.post('/api/reviewiq/never-ask', async (req, res) => {
+app.post('/api/reviewai/never-ask', async (req, res) => {
   try {
     const { customerId } = req.body;
     
@@ -2947,7 +2947,7 @@ app.get('/api/debug/item/:itemId', async (req, res) => {
   }
 });
 
-// Get lapsed customers for Retargeting
+// Get lapsed customers for RetargetAI
 app.get('/api/customers/lapsed', async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 90;
@@ -3020,6 +3020,76 @@ app.get('/api/customers/lapsed', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching lapsed customers:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send RetargetAI message via Klaviyo
+app.post('/api/retargetai/send', async (req, res) => {
+  try {
+    const { customerId, message, method } = req.body;
+    
+    // Get customer details
+    const customerResult = await pool.query(`
+      SELECT email, phone, first_name, last_name 
+      FROM customers 
+      WHERE heartland_customer_id = $1
+    `, [customerId]);
+    
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    
+    const customer = customerResult.rows[0];
+    
+    // Send to Klaviyo
+    try {
+      const klaviyoPayload = {
+        data: {
+          type: 'event',
+          attributes: {
+            profile: {
+              email: customer.email,
+              phone_number: customer.phone,
+              first_name: customer.first_name,
+              last_name: customer.last_name
+            },
+            metric: {
+              name: 'Retargeting Message Sent'
+            },
+            properties: {
+              message: message,
+              method: method,
+              customer_id: customerId
+            }
+          }
+        }
+      };
+      
+      const klaviyoResponse = await fetch('https://a.klaviyo.com/api/events/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'revision': '2023-06-15'
+        },
+        body: JSON.stringify(klaviyoPayload)
+      });
+      
+      if (!klaviyoResponse.ok) {
+        const errorText = await klaviyoResponse.text();
+        console.error('Klaviyo API error:', errorText);
+      } else {
+        console.log(`RetargetAI: Sent to Klaviyo - ${customer.email || customer.phone}`);
+      }
+    } catch (klaviyoError) {
+      console.error('Klaviyo request failed:', klaviyoError.message);
+    }
+    
+    res.json({ success: true, message: 'Retargeting message sent to Klaviyo' });
+  } catch (error) {
+    console.error('Error sending retargeting message:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3124,7 +3194,7 @@ app.get('/api/customers/match', async (req, res) => {
 });
 
 // Get First Dibs matches - new arrivals matched to customers
-app.get('/api/first-dibs/matches', async (req, res) => {
+app.get('/api/firstdibsai/matches', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 20;
     const daysBack = parseInt(req.query.days) || 7; // Look at receipts from last 7 days
@@ -3296,6 +3366,76 @@ app.get('/api/first-dibs/matches', async (req, res) => {
     
   } catch (error) {
     console.error('Error getting First Dibs matches:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send FirstDibsAI message via Klaviyo
+app.post('/api/firstdibsai/send', async (req, res) => {
+  try {
+    const { customerId, message, method } = req.body;
+    
+    // Get customer details
+    const customerResult = await pool.query(`
+      SELECT email, phone, first_name, last_name 
+      FROM customers 
+      WHERE heartland_customer_id = $1
+    `, [customerId]);
+    
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+    
+    const customer = customerResult.rows[0];
+    
+    // Send to Klaviyo
+    try {
+      const klaviyoPayload = {
+        data: {
+          type: 'event',
+          attributes: {
+            profile: {
+              email: customer.email,
+              phone_number: customer.phone,
+              first_name: customer.first_name,
+              last_name: customer.last_name
+            },
+            metric: {
+              name: 'First Dibs Message Sent'
+            },
+            properties: {
+              message: message,
+              method: method,
+              customer_id: customerId
+            }
+          }
+        }
+      };
+      
+      const klaviyoResponse = await fetch('https://a.klaviyo.com/api/events/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'revision': '2023-06-15'
+        },
+        body: JSON.stringify(klaviyoPayload)
+      });
+      
+      if (!klaviyoResponse.ok) {
+        const errorText = await klaviyoResponse.text();
+        console.error('Klaviyo API error:', errorText);
+      } else {
+        console.log(`FirstDibsAI: Sent to Klaviyo - ${customer.email || customer.phone}`);
+      }
+    } catch (klaviyoError) {
+      console.error('Klaviyo request failed:', klaviyoError.message);
+    }
+    
+    res.json({ success: true, message: 'First Dibs message sent to Klaviyo' });
+  } catch (error) {
+    console.error('Error sending First Dibs message:', error);
     res.status(500).json({ error: error.message });
   }
 });
