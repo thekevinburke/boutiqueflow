@@ -2654,6 +2654,66 @@ app.get('/api/reviewiq/customers', async (req, res) => {
 // Klaviyo API Key for ReviewIQ
 const KLAVIYO_API_KEY = 'pk_eb867279e2621d7bc3073404e4fed04a88';
 
+// Test Klaviyo connection
+app.get('/api/reviewiq/test-klaviyo', async (req, res) => {
+  try {
+    const testPayload = {
+      data: {
+        type: 'event',
+        attributes: {
+          profile: {
+            data: {
+              type: 'profile',
+              attributes: {
+                email: 'test@boutiqueflow.ai'
+              }
+            }
+          },
+          metric: {
+            data: {
+              type: 'metric',
+              attributes: {
+                name: 'Review Request Sent'
+              }
+            }
+          },
+          properties: {
+            message: 'Test message from BoutiqueFlow',
+            method: 'test',
+            customer_id: 'test-123'
+          }
+        }
+      }
+    };
+    
+    console.log('Klaviyo test payload:', JSON.stringify(testPayload, null, 2));
+    
+    const klaviyoResponse = await fetch('https://a.klaviyo.com/api/events/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Klaviyo-API-Key ${KLAVIYO_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'revision': '2023-06-15'
+      },
+      body: JSON.stringify(testPayload)
+    });
+    
+    const responseText = await klaviyoResponse.text();
+    console.log('Klaviyo response status:', klaviyoResponse.status);
+    console.log('Klaviyo response:', responseText);
+    
+    res.json({
+      status: klaviyoResponse.status,
+      ok: klaviyoResponse.ok,
+      response: responseText || '(empty - 202 means success)'
+    });
+  } catch (error) {
+    console.error('Klaviyo test error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Send review request
 app.post('/api/reviewiq/send', async (req, res) => {
   try {
