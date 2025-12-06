@@ -411,6 +411,33 @@
       color: #888;
     }
 
+    /* Toggle Buttons */
+    .toggle-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .toggle-btn {
+      padding: 6px 12px;
+      border: 1px solid #e0e0e0;
+      background: white;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #666;
+    }
+
+    .toggle-btn:hover {
+      border-color: #e91e8a;
+    }
+
+    .toggle-btn.active {
+      background: #e91e8a;
+      color: white;
+      border-color: #e91e8a;
+    }
+
     /* Velocity Cards */
     .velocity-section {
       display: grid;
@@ -429,6 +456,8 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      max-height: 500px;
+      overflow-y: auto;
     }
 
     .velocity-item {
@@ -448,16 +477,6 @@
       font-size: 0.75rem;
       font-weight: 600;
       color: #666;
-    }
-
-    .velocity-rank.fast {
-      background: #d1fae5;
-      color: #059669;
-    }
-
-    .velocity-rank.slow {
-      background: #fee2e2;
-      color: #dc2626;
     }
 
     .velocity-info {
@@ -805,7 +824,11 @@
       <div class="velocity-section">
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">🔥 Fastest Selling Categories</span>
+            <span class="panel-title">📊 Categories by Velocity</span>
+            <div class="toggle-btns">
+              <button class="toggle-btn active" onclick="toggleCategoryVelocity('fastest')" id="catFastestBtn">Fastest</button>
+              <button class="toggle-btn" onclick="toggleCategoryVelocity('slowest')" id="catSlowestBtn">Slowest</button>
+            </div>
           </div>
           <div class="velocity-list" id="categoryVelocity">
             <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
@@ -813,7 +836,11 @@
         </div>
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">🏷️ Fastest Selling Vendors</span>
+            <span class="panel-title">🏷️ Vendors by Velocity</span>
+            <div class="toggle-btns">
+              <button class="toggle-btn active" onclick="toggleVendorVelocity('fastest')" id="vendorFastestBtn">Fastest</button>
+              <button class="toggle-btn" onclick="toggleVendorVelocity('slowest')" id="vendorSlowestBtn">Slowest</button>
+            </div>
           </div>
           <div class="velocity-list" id="vendorVelocity">
             <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
@@ -1170,9 +1197,26 @@
         return;
       }
       
-      const maxAvg = Math.max(...hourlyAvg.map(h => h.avg));
+      // Sort chronologically by parsing the hour string (e.g., "9am", "12pm", "3pm")
+      const sortedHours = [...hourlyAvg].sort((a, b) => {
+        const parseHour = (str) => {
+          const match = str.match(/(\d+)(am|pm)/i);
+          if (!match) return 0;
+          let hour = parseInt(match[1]);
+          const isPM = match[2].toLowerCase() === 'pm';
+          if (hour === 12) {
+            hour = isPM ? 12 : 0;
+          } else if (isPM) {
+            hour += 12;
+          }
+          return hour;
+        };
+        return parseHour(a.hour) - parseHour(b.hour);
+      });
       
-      container.innerHTML = hourlyAvg.map(h => {
+      const maxAvg = Math.max(...sortedHours.map(h => h.avg));
+      
+      container.innerHTML = sortedHours.map(h => {
         const heightPct = maxAvg > 0 ? (h.avg / maxAvg) * 100 : 0;
         let level = 'low';
         if (h.avg > maxAvg * 0.8) level = 'peak';
@@ -1199,39 +1243,71 @@
       renderDeadStock();
     }
 
+    // Track current velocity view state
+    let categoryVelocityView = 'fastest';
+    let vendorVelocityView = 'fastest';
+
+    function toggleCategoryVelocity(view) {
+      categoryVelocityView = view;
+      document.getElementById('catFastestBtn').classList.toggle('active', view === 'fastest');
+      document.getElementById('catSlowestBtn').classList.toggle('active', view === 'slowest');
+      renderCategoryVelocity();
+    }
+
+    function toggleVendorVelocity(view) {
+      vendorVelocityView = view;
+      document.getElementById('vendorFastestBtn').classList.toggle('active', view === 'fastest');
+      document.getElementById('vendorSlowestBtn').classList.toggle('active', view === 'slowest');
+      renderVendorVelocity();
+    }
+
     function renderVelocity() {
       if (!inventoryData?.velocity) return;
+      renderCategoryVelocity();
+      renderVendorVelocity();
+    }
+
+    function renderCategoryVelocity() {
+      if (!inventoryData?.velocity?.byCategory) return;
       
-      // Category velocity
-      const categoryHtml = inventoryData.velocity.byCategory.slice(0, 6).map((cat, i) => {
-        const speedClass = cat.avgDaysToSell <= 30 ? 'fast' : cat.avgDaysToSell >= 60 ? 'slow' : '';
-        const rankClass = i < 2 ? 'fast' : i >= 4 ? 'slow' : '';
+      let categories = [...inventoryData.velocity.byCategory];
+      if (categoryVelocityView === 'slowest') {
+        categories = categories.slice().reverse();
+      }
+      
+      const categoryHtml = categories.slice(0, 10).map((cat, i) => {
         return `
           <div class="velocity-item">
-            <div class="velocity-rank ${rankClass}">${i + 1}</div>
+            <div class="velocity-rank">${i + 1}</div>
             <div class="velocity-info">
               <div class="velocity-name">${cat.name}</div>
               <div class="velocity-meta">${cat.itemsSold} items sold</div>
             </div>
-            <div class="velocity-days ${speedClass}">${cat.avgDaysToSell} days</div>
+            <div class="velocity-days">${cat.avgDaysToSell} days</div>
           </div>
         `;
       }).join('');
       
       document.getElementById('categoryVelocity').innerHTML = categoryHtml || '<p class="item-meta">Not enough data yet</p>';
+    }
+
+    function renderVendorVelocity() {
+      if (!inventoryData?.velocity?.byVendor) return;
       
-      // Vendor velocity
-      const vendorHtml = inventoryData.velocity.byVendor.slice(0, 6).map((vendor, i) => {
-        const speedClass = vendor.avgDaysToSell <= 30 ? 'fast' : vendor.avgDaysToSell >= 60 ? 'slow' : '';
-        const rankClass = i < 2 ? 'fast' : i >= 4 ? 'slow' : '';
+      let vendors = [...inventoryData.velocity.byVendor];
+      if (vendorVelocityView === 'slowest') {
+        vendors = vendors.slice().reverse();
+      }
+      
+      const vendorHtml = vendors.slice(0, 10).map((vendor, i) => {
         return `
           <div class="velocity-item">
-            <div class="velocity-rank ${rankClass}">${i + 1}</div>
+            <div class="velocity-rank">${i + 1}</div>
             <div class="velocity-info">
               <div class="velocity-name">${vendor.name}</div>
               <div class="velocity-meta">${vendor.itemsSold} items sold</div>
             </div>
-            <div class="velocity-days ${speedClass}">${vendor.avgDaysToSell} days</div>
+            <div class="velocity-days">${vendor.avgDaysToSell} days</div>
           </div>
         `;
       }).join('');
