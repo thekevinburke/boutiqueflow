@@ -165,38 +165,6 @@
       margin-bottom: 4px;
     }
 
-    .hours-summary {
-      display: flex;
-      gap: 24px;
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid #f0f0f0;
-    }
-
-    .hours-summary-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .hours-summary-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
-    .hours-summary-dot.peak { background: #f59e0b; }
-    .hours-summary-dot.slow { background: #e5e5e5; }
-
-    .hours-summary-text {
-      font-size: 0.85rem;
-      color: #666;
-    }
-
-    .hours-summary-text strong {
-      color: #222;
-    }
-
     /* Two Column Layout */
     .two-column {
       display: grid;
@@ -486,16 +454,6 @@
       <div class="hours-bar-chart" id="hourlyBarChart">
         <!-- Rendered by JS -->
       </div>
-      <div class="hours-summary">
-        <div class="hours-summary-item">
-          <div class="hours-summary-dot peak"></div>
-          <span class="hours-summary-text"><strong>Peak hours:</strong> 2pm - 5pm (avg $892/hr)</span>
-        </div>
-        <div class="hours-summary-item">
-          <div class="hours-summary-dot slow"></div>
-          <span class="hours-summary-text"><strong>Slowest hours:</strong> 10am - 11am (avg $127/hr)</span>
-        </div>
-      </div>
     </div>
 
   </div>
@@ -648,7 +606,7 @@
 
     function generateAIInsight() {
       if (dailySales.length === 0) {
-        document.getElementById('aiInsight').textContent = 'Sync sales data to see AI-powered insights about your sales patterns.';
+        document.getElementById('aiInsight').innerHTML = 'Sync sales data to see AI-powered insights about your sales patterns.';
         return;
       }
       
@@ -665,21 +623,25 @@
       // Top category
       const topCategory = categories[0]?.name || 'Unknown';
       
-      let insight = '';
+      let bullets = [];
       if (bestDay) {
-        insight = `${bestDay.day} is your strongest day with ${bestDayPct}% higher sales than average. `;
+        bullets.push(`<strong>${bestDay.day}</strong> is your strongest day with ${bestDayPct}% higher sales than average`);
       }
       if (peakHours) {
-        insight += `Peak hours are ${peakHours}. `;
+        bullets.push(`Peak hours are <strong>${peakHours}</strong>`);
       }
       if (slowestHour && slowestHour.avg > 0) {
-        insight += `Your slowest hour is ${slowestHour.hour} averaging $${slowestHour.avg}. `;
+        bullets.push(`Your slowest hour is <strong>${slowestHour.hour}</strong> averaging $${slowestHour.avg}`);
       }
       if (topCategory) {
-        insight += `${topCategory} is your top-performing category.`;
+        bullets.push(`<strong>${topCategory}</strong> is your top-performing category`);
       }
       
-      document.getElementById('aiInsight').textContent = insight || 'Analyzing your sales patterns...';
+      if (bullets.length > 0) {
+        document.getElementById('aiInsight').innerHTML = '<ul style="margin: 0; padding-left: 20px;">' + bullets.map(b => `<li>${b}</li>`).join('') + '</ul>';
+      } else {
+        document.getElementById('aiInsight').innerHTML = 'Analyzing your sales patterns...';
+      }
     }
 
     // Render hourly bar chart
